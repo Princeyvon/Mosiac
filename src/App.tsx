@@ -3,8 +3,10 @@ import { StoreProvider, useStore } from './context/StoreContext';
 import { StickyHeader } from './components/storefront/StickyHeader';
 import { ProductGrid } from './components/storefront/ProductGrid';
 import { ProductDetail } from './components/storefront/ProductDetail';
+import { ProductVariantsView } from './components/storefront/ProductVariantsView';
+import { CartPage } from './components/storefront/CartPage';
+import { PoliciesPage } from './components/storefront/PoliciesPage';
 import { Footer } from './components/storefront/Footer';
-import { CartDrawer } from './components/storefront/CartDrawer';
 import { CookieBanner } from './components/storefront/CookieBanner';
 import { StoreModals } from './components/storefront/StoreModals';
 import { DashboardShell } from './components/dashboard/DashboardShell';
@@ -65,6 +67,36 @@ const MainAppContent: React.FC = () => {
                   >
                     <ProductDetail slug={currentProductSlug} />
                   </motion.div>
+                ) : currentView === 'variants' && currentProductSlug ? (
+                  <motion.div
+                    key={`variants-${currentProductSlug}`}
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -14 }}
+                    transition={{ duration: 0.24, ease: 'easeOut' }}
+                  >
+                    <ProductVariantsView slug={currentProductSlug} />
+                  </motion.div>
+                ) : currentView === 'cart' ? (
+                  <motion.div
+                    key="cart-view"
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -14 }}
+                    transition={{ duration: 0.24, ease: 'easeOut' }}
+                  >
+                    <CartPage />
+                  </motion.div>
+                ) : currentView === 'policies' ? (
+                  <motion.div
+                    key="policies-view"
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -14 }}
+                    transition={{ duration: 0.24, ease: 'easeOut' }}
+                  >
+                    <PoliciesPage />
+                  </motion.div>
                 ) : (
                   <motion.div
                     key="storefront-grid"
@@ -80,7 +112,6 @@ const MainAppContent: React.FC = () => {
             </main>
 
             <Footer />
-            <CartDrawer />
             <CookieBanner />
             <StoreModals />
           </motion.div>

@@ -14,10 +14,17 @@ interface StoreContextType {
   createNewProduct: () => string; // returns new product id
 
   // Routing / View state
-  currentView: 'store' | 'pdp' | 'dash';
+  currentView: 'store' | 'pdp' | 'variants' | 'cart' | 'policies' | 'dash';
   currentProductSlug: string | null;
+  selectedColorVariant: string | null;
+  setSelectedColorVariant: (color: string | null) => void;
+  gridDensity: 'dense' | 'normal';
+  toggleGridDensity: () => void;
   navigateToStore: () => void;
-  navigateToPDP: (slug: string) => void;
+  navigateToPDP: (slug: string, colorVariant?: string) => void;
+  navigateToVariants: (slug: string) => void;
+  navigateToCart: () => void;
+  navigateToPolicies: () => void;
   navigateToDash: (tab?: string) => void;
   activeAdminTab: string;
   setActiveAdminTab: (tab: string) => void;
@@ -35,8 +42,10 @@ interface StoreContextType {
   setCartOpen: (open: boolean) => void;
   addToCart: (productId: string, sizeId: string, colorName: string, quantity?: number) => void;
   updateCartQuantity: (index: number, delta: number) => void;
+  updateCartItemSize: (index: number, newSizeId: string) => void;
   removeFromCart: (index: number) => void;
   clearCart: () => void;
+  submitCheckoutOrder: (details: { customerName: string; customerEmail: string; paymentMethod: string; cardLast4?: string }) => Order;
   cartCount: number;
   cartSubtotalUSD: number;
 
@@ -148,10 +157,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   // Navigation / views
-  const [currentView, setCurrentView] = useState<'store' | 'pdp' | 'dash'>('store');
+  const [currentView, setCurrentView] = useState<'store' | 'pdp' | 'variants' | 'cart' | 'policies' | 'dash'>('store');
   const [currentProductSlug, setCurrentProductSlug] = useState<string | null>(null);
+  const [selectedColorVariant, setSelectedColorVariant] = useState<string | null>(null);
+  const [gridDensity, setGridDensity] = useState<'dense' | 'normal'>('dense');
   const [activeAdminTab, setActiveAdminTab] = useState<string>('catalogue');
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
+
+  const toggleGridDensity = () => {
+    setGridDensity(prev => (prev === 'dense' ? 'normal' : 'dense'));
+  };
 
   // Currency
   const [currency, setCurrencyState] = useState<Currency>(() => {
@@ -270,10 +285,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const navigateToPDP = (slug: string) => {
+  const navigateToPDP = (slug: string, colorVariant?: string) => {
     setCurrentProductSlug(slug);
+    if (colorVariant) {
+      setSelectedColorVariant(colorVariant);
+    }
     setCurrentView('pdp');
     setEditingProductId(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const navigateToVariants = (slug: string) => {
+    setCurrentProductSlug(slug);
+    setCurrentView('variants');
+    setEditingProductId(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const navigateToCart = () => {
+    setCurrentView('cart');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const navigateToPolicies = () => {
+    setCurrentView('policies');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -296,7 +331,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       return [...prev, { productId, sizeId, colorName, quantity }];
     });
-    setCartOpen(true);
     showToast('Added to bag');
   };
 
@@ -314,12 +348,54 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   };
 
+  const updateCartItemSize = (index: number, newSizeId: string) => {
+    setCart(prev => {
+      const next = [...prev];
+      if (!next[index]) return prev;
+      next[index] = { ...next[index], sizeId: newSizeId };
+      return next;
+    });
+  };
+
   const removeFromCart = (index: number) => {
     setCart(prev => prev.filter((_, i) => i !== index));
   };
 
   const clearCart = () => {
     setCart([]);
+  };
+
+  const submitCheckoutOrder = (details: {
+    customerName: string;
+    customerEmail: string;
+    paymentMethod: string;
+    cardLast4?: string;
+  }): Order => {
+    const newOrderId = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
+    const newOrder: Order = {
+      id: newOrderId,
+      customerName: details.customerName || 'Studio Client',
+      customerEmail: details.customerEmail || 'client@studio.com',
+      total: cartSubtotalUSD,
+      currency: currency.code,
+      status: 'Processing',
+      date: new Date().toISOString().split('T')[0],
+      itemsCount: cartCount
+    };
+
+    setOrders(prev => [newOrder, ...prev]);
+    setAuditLogs(prev => [
+      {
+        id: 'log-' + Date.now(),
+        action: `Order placed (${newOrderId})`,
+        target: `${details.paymentMethod} · ${currency.symbol}${cartSubtotalUSD.toLocaleString()}`,
+        user: details.customerName || 'Customer',
+        timestamp: 'Just now'
+      },
+      ...prev
+    ]);
+    clearCart();
+    return newOrder;
   };
 
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
@@ -515,8 +591,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         currentView,
         currentProductSlug,
+        selectedColorVariant,
+        setSelectedColorVariant,
+        gridDensity,
+        toggleGridDensity,
         navigateToStore,
         navigateToPDP,
+        navigateToVariants,
+        navigateToCart,
+        navigateToPolicies,
         navigateToDash,
         activeAdminTab,
         setActiveAdminTab,
@@ -532,8 +615,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setCartOpen,
         addToCart,
         updateCartQuantity,
+        updateCartItemSize,
         removeFromCart,
         clearCart,
+        submitCheckoutOrder,
         cartCount,
         cartSubtotalUSD,
 
