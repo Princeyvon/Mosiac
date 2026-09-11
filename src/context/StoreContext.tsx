@@ -1,5 +1,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product, CartItem, Currency, Order, AuditLog } from '../types';
+import {
+  Product,
+  CartItem,
+  Currency,
+  Order,
+  AuditLog,
+  StorefrontFilter,
+  PromoPopupConfig,
+  PolicySection,
+  TeamMember,
+  UserProfile
+} from '../types';
 import { INITIAL_PRODUCTS, CURRENCIES } from '../data/initialProducts';
 
 interface StoreContextType {
@@ -31,6 +42,13 @@ interface StoreContextType {
   editingProductId: string | null;
   setEditingProductId: (id: string | null) => void;
 
+  // Storefront Filters
+  storefrontFilters: StorefrontFilter[];
+  activeFilter: string;
+  setActiveFilter: (slug: string) => void;
+  addStorefrontFilter: (label: string, slug?: string) => void;
+  deleteStorefrontFilter: (id: string) => void;
+
   // Currency
   currency: Currency;
   setCurrency: (c: Currency) => void;
@@ -48,6 +66,32 @@ interface StoreContextType {
   submitCheckoutOrder: (details: { customerName: string; customerEmail: string; paymentMethod: string; cardLast4?: string }) => Order;
   cartCount: number;
   cartSubtotalUSD: number;
+  appliedPromo: { code: string; discountPercent: number; description: string } | null;
+  applyPromoCode: (code: string) => { success: boolean; message: string };
+  removePromoCode: () => void;
+  cartPromoDiscountUSD: number;
+  cartFinalTotalUSD: number;
+
+  // Promo Popup
+  promoPopupConfig: PromoPopupConfig;
+  updatePromoPopupConfig: (config: Partial<PromoPopupConfig>) => void;
+  showPromoPopup: boolean;
+  setShowPromoPopup: (show: boolean) => void;
+  triggerPromoPreview: () => void;
+
+  // Policies
+  policies: PolicySection[];
+  updatePolicySection: (id: string, newTitle: string, newContent: string) => void;
+
+  // Team
+  teamMembers: TeamMember[];
+  toggleTeamMemberActive: (id: string) => void;
+  updateTeamMember: (id: string, updates: Partial<TeamMember>) => void;
+  addTeamMember: (member: Omit<TeamMember, 'id' | 'lastActive'>) => void;
+
+  // Profile
+  userProfile: UserProfile;
+  updateUserProfile: (updates: Partial<UserProfile>) => void;
 
   // Admin Auth
   isAdminAuth: boolean;
@@ -79,6 +123,140 @@ const STORAGE_KEYS = {
   CURRENCY: 'forma_currency_v2',
   COOKIES: 'forma_cookie_consent_v1',
   ADMIN_AUTH: 'forma_admin_auth_v1',
+  FILTERS: 'mosiac_filters_v1',
+  PROMO_CONFIG: 'mosiac_promo_config_v1',
+  POLICIES: 'mosiac_policies_v1',
+  TEAM: 'mosiac_team_v1',
+  PROFILE: 'mosiac_profile_v1',
+};
+
+const INITIAL_FILTERS: StorefrontFilter[] = [
+  { id: 'f-all', label: 'All', slug: 'all' },
+  { id: 'f-sale', label: 'On Sale', slug: 'on-sale' },
+  { id: 'f-feat', label: 'Featured', slug: 'featured' },
+  { id: 'f-new', label: 'New', slug: 'new' },
+];
+
+const INITIAL_POLICIES: PolicySection[] = [
+  {
+    id: 'legal',
+    title: 'Terms & Conditions of Sale',
+    content: 'Welcome to Mosiac. By accessing our platform, viewing our catalogue, or acquiring works from our atelier, you agree to comply with and be bound by studio terms and conditions. Every textile presented by Mosiac is individually crafted by master artisans using organic New Zealand virgin wool, botanical luster fibers, and museum-grade dyes. Slight organic variations in pile height, contour beveling, and subtle tone gradients are intrinsic hallmarks of authentic artisanal creation.',
+    lastUpdated: 'September 2026'
+  },
+  {
+    id: 'orders',
+    title: 'Order Status & Live Tracking',
+    content: 'Track the fabrication, finishing, and white-glove logistics of your studio acquisition in real-time. Each commissioned piece is registered under a permanent studio invoice reference. Live transit alerts and temperature-controlled freight manifests are dispatched to the client email on file upon atelier inspection completion.',
+    lastUpdated: 'September 2026'
+  },
+  {
+    id: 'shipping',
+    title: 'Shipping & White-Glove Delivery',
+    content: 'Mosiac partners exclusively with premier international art-handling logistics carriers. Every rug is rolled on high-rigidity structural tubes and encased in sealed archival moisture-barrier timber crates. Complimentary white-glove uncrating and placement is provided for all salon and grand dimension commissions.',
+    lastUpdated: 'September 2026'
+  },
+  {
+    id: 'returns',
+    title: 'Returns & 30-Day Studio Guarantee',
+    content: 'We want you to experience our textiles under your natural interior light. We offer a 30-day inspection window from the date of physical delivery for standard catalogue editions. The textile must remain in original pristine condition, unwashed, with all studio labels intact.',
+    lastUpdated: 'September 2026'
+  },
+  {
+    id: 'privacy',
+    title: 'Privacy & Data Governance',
+    content: 'Mosiac maintains strict confidentiality regarding our clients, collectors, and architectural partners. We comply with GDPR, CCPA, and global privacy standards. We collect only information essential to servicing your order and never sell or monetize client data.',
+    lastUpdated: 'September 2026'
+  },
+  {
+    id: 'cookies',
+    title: 'Cookie Policy & Preferences',
+    content: 'Mosiac uses strictly necessary local storage cookies to retain your shopping bag contents, selected studio currency, and catalogue grid density preferences across sessions without third-party surveillance tracking.',
+    lastUpdated: 'September 2026'
+  },
+  {
+    id: 'about',
+    title: 'About Mosiac Studio',
+    content: 'Founded at the intersection of sculptural minimalism and architectural fiber art, Mosiac crafts textiles that ground contemporary living spaces with intentional tactile presence. Our master weavers hand-tuft and hand-carve each rug using 100% un-dyed New Zealand virgin highland wool, paired with botanically luster-treated silk inlays.',
+    lastUpdated: 'September 2026'
+  },
+  {
+    id: 'contact',
+    title: 'Contact & Atelier Concierge',
+    content: 'Reach our design concierge for bespoke scale inquiries, private architectural trade pricing, or showroom viewings in Paris and New York. Concierge: concierge@rugmosiac.com · +33 1 42 68 00 90',
+    lastUpdated: 'September 2026'
+  }
+];
+
+const INITIAL_TEAM: TeamMember[] = [
+  {
+    id: 'tm-1',
+    name: 'Laurent Moreau',
+    username: 'l.moreau',
+    email: 'laurent@rugmosiac.com',
+    role: 'Studio Director',
+    active: true,
+    pin: '4821',
+    password: '••••••••',
+    lastActive: 'Just now'
+  },
+  {
+    id: 'tm-2',
+    name: 'Elena Rostova',
+    username: 'e.rostova',
+    email: 'elena@rugmosiac.com',
+    role: 'Senior Curator',
+    active: true,
+    pin: '9012',
+    password: '••••••••',
+    lastActive: '2 hours ago'
+  },
+  {
+    id: 'tm-3',
+    name: 'Sora Takahashi',
+    username: 's.takahashi',
+    email: 'sora@rugmosiac.com',
+    role: 'Atelier Manager',
+    active: true,
+    pin: '3341',
+    password: '••••••••',
+    lastActive: 'Yesterday'
+  },
+  {
+    id: 'tm-4',
+    name: 'Mathieu Blanc',
+    username: 'm.blanc',
+    email: 'mathieu@rugmosiac.com',
+    role: 'Logistics Lead',
+    active: false,
+    pin: '7729',
+    password: '••••••••',
+    lastActive: '5 days ago'
+  }
+];
+
+const INITIAL_PROFILE: UserProfile = {
+  name: 'Studio Director',
+  username: 'director.mosiac',
+  email: 'ddteam@rugmosiac.com',
+  role: 'Master Administrator',
+  pin: '1234',
+  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+  bio: 'Overseeing global textile commissions, custom loom weaving, and architectural client relations for Mosiac Atelier.',
+  notificationsEnabled: true
+};
+
+const INITIAL_PROMO_CONFIG: PromoPopupConfig = {
+  enabled: true,
+  delaySeconds: 30,
+  badgeText: 'sample sale',
+  eyebrow: 'ONLINE SAMPLE SALE NOW LIVE!',
+  headline: 'Shop up to 70% off select sample sale items!',
+  subtext: 'Ends September 7th.',
+  buttonText: 'SHOP NOW!',
+  discountCode: 'SAMPLE70',
+  imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=85',
+  filterTag: 'on-sale'
 };
 
 const INITIAL_ORDERS: Order[] = [
@@ -166,6 +344,194 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const toggleGridDensity = () => {
     setGridDensity(prev => (prev === 'dense' ? 'normal' : 'dense'));
+  };
+
+  // Storefront Filters (managed in Studio Dash)
+  const [storefrontFilters, setStorefrontFilters] = useState<StorefrontFilter[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.FILTERS);
+      return saved ? JSON.parse(saved) : INITIAL_FILTERS;
+    } catch {
+      return INITIAL_FILTERS;
+    }
+  });
+  const [activeFilter, setActiveFilter] = useState<string>('all');
+
+  const addStorefrontFilter = (label: string, slug?: string) => {
+    const newSlug = slug || label.toLowerCase().replace(/\s+/g, '-');
+    const newFilter: StorefrontFilter = {
+      id: 'filter-' + Date.now().toString().slice(-4),
+      label,
+      slug: newSlug,
+    };
+    const updated = [...storefrontFilters, newFilter];
+    setStorefrontFilters(updated);
+    try {
+      localStorage.setItem(STORAGE_KEYS.FILTERS, JSON.stringify(updated));
+    } catch {}
+    showToast(`Filter "${label}" created`);
+  };
+
+  const deleteStorefrontFilter = (id: string) => {
+    if (id === 'f-all') return; // Cannot delete All
+    const updated = storefrontFilters.filter(f => f.id !== id);
+    setStorefrontFilters(updated);
+    try {
+      localStorage.setItem(STORAGE_KEYS.FILTERS, JSON.stringify(updated));
+    } catch {}
+    if (activeFilter !== 'all') setActiveFilter('all');
+    showToast('Filter removed');
+  };
+
+  // Promo Pop-up Configuration
+  const [promoPopupConfig, setPromoPopupConfig] = useState<PromoPopupConfig>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.PROMO_CONFIG);
+      return saved ? JSON.parse(saved) : INITIAL_PROMO_CONFIG;
+    } catch {
+      return INITIAL_PROMO_CONFIG;
+    }
+  });
+  const [showPromoPopup, setShowPromoPopup] = useState(false);
+
+  const updatePromoPopupConfig = (updates: Partial<PromoPopupConfig>) => {
+    setPromoPopupConfig(prev => {
+      const next = { ...prev, ...updates };
+      try {
+        localStorage.setItem(STORAGE_KEYS.PROMO_CONFIG, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    showToast('Promo popup settings updated');
+  };
+
+  const triggerPromoPreview = () => {
+    setShowPromoPopup(true);
+  };
+
+  // Auto-trigger promo pop-up after 30 seconds (or delaySeconds)
+  useEffect(() => {
+    if (!promoPopupConfig.enabled) return;
+    const timer = setTimeout(() => {
+      setShowPromoPopup(true);
+    }, (promoPopupConfig.delaySeconds || 30) * 1000);
+    return () => clearTimeout(timer);
+  }, [promoPopupConfig.enabled, promoPopupConfig.delaySeconds]);
+
+  // Studio Policies (editable in Studio Dash)
+  const [policies, setPolicies] = useState<PolicySection[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.POLICIES);
+      return saved ? JSON.parse(saved) : INITIAL_POLICIES;
+    } catch {
+      return INITIAL_POLICIES;
+    }
+  });
+
+  const updatePolicySection = (id: string, newTitle: string, newContent: string) => {
+    setPolicies(prev => {
+      const next = prev.map(p =>
+        p.id === id ? { ...p, title: newTitle, content: newContent, lastUpdated: 'Updated just now' } : p
+      );
+      try {
+        localStorage.setItem(STORAGE_KEYS.POLICIES, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    showToast('Studio policy updated');
+  };
+
+  // Studio Team Members (with accordion credentials in Dash)
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.TEAM);
+      return saved ? JSON.parse(saved) : INITIAL_TEAM;
+    } catch {
+      return INITIAL_TEAM;
+    }
+  });
+
+  const toggleTeamMemberActive = (id: string) => {
+    setTeamMembers(prev => {
+      const next = prev.map(m => (m.id === id ? { ...m, active: !m.active } : m));
+      try {
+        localStorage.setItem(STORAGE_KEYS.TEAM, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    showToast('Team member status updated');
+  };
+
+  const updateTeamMember = (id: string, updates: Partial<TeamMember>) => {
+    setTeamMembers(prev => {
+      const next = prev.map(m => (m.id === id ? { ...m, ...updates } : m));
+      try {
+        localStorage.setItem(STORAGE_KEYS.TEAM, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    showToast('Team member credentials updated');
+  };
+
+  const addTeamMember = (member: Omit<TeamMember, 'id' | 'lastActive'>) => {
+    const newMember: TeamMember = {
+      ...member,
+      id: 'tm-' + Date.now().toString().slice(-4),
+      lastActive: 'Never'
+    };
+    const next = [...teamMembers, newMember];
+    setTeamMembers(next);
+    try {
+      localStorage.setItem(STORAGE_KEYS.TEAM, JSON.stringify(next));
+    } catch {}
+    showToast(`Added ${member.name} to team`);
+  };
+
+  // User Profile
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
+      return saved ? JSON.parse(saved) : INITIAL_PROFILE;
+    } catch {
+      return INITIAL_PROFILE;
+    }
+  });
+
+  const updateUserProfile = (updates: Partial<UserProfile>) => {
+    setUserProfile(prev => {
+      const next = { ...prev, ...updates };
+      try {
+        localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    showToast('Profile updated');
+  };
+
+  // Promo Code in Cart Checkout
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountPercent: number; description: string } | null>(null);
+
+  const applyPromoCode = (code: string) => {
+    const clean = code.trim().toUpperCase();
+    if (clean === 'SAMPLE70' || clean === 'MOSIAC70') {
+      setAppliedPromo({ code: clean, discountPercent: 70, description: 'Sample Sale (70% Off)' });
+      showToast('Promo code applied: 70% Off!');
+      return { success: true, message: '70% discount applied!' };
+    } else if (clean === 'MOSIAC10' || clean === 'WELCOME10') {
+      setAppliedPromo({ code: clean, discountPercent: 10, description: 'Collector Welcome (10% Off)' });
+      showToast('Promo code applied: 10% Off!');
+      return { success: true, message: '10% discount applied!' };
+    } else if (clean === promoPopupConfig.discountCode.toUpperCase()) {
+      setAppliedPromo({ code: clean, discountPercent: 30, description: 'Promotional Offer (30% Off)' });
+      showToast('Promo code applied: 30% Off!');
+      return { success: true, message: 'Promotional discount applied!' };
+    }
+    return { success: false, message: 'Invalid or expired promotional code' };
+  };
+
+  const removePromoCode = () => {
+    setAppliedPromo(null);
+    showToast('Promo code removed');
   };
 
   // Currency
@@ -372,11 +738,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     cardLast4?: string;
   }): Order => {
     const newOrderId = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
+    const promoDiscountUSD = appliedPromo ? (cartSubtotalUSD * appliedPromo.discountPercent) / 100 : 0;
+    const finalTotal = Math.max(0, cartSubtotalUSD - promoDiscountUSD);
+
     const newOrder: Order = {
       id: newOrderId,
       customerName: details.customerName || 'Studio Client',
       customerEmail: details.customerEmail || 'client@studio.com',
-      total: cartSubtotalUSD,
+      total: finalTotal,
       currency: currency.code,
       status: 'Processing',
       date: new Date().toISOString().split('T')[0],
@@ -388,13 +757,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       {
         id: 'log-' + Date.now(),
         action: `Order placed (${newOrderId})`,
-        target: `${details.paymentMethod} · ${currency.symbol}${cartSubtotalUSD.toLocaleString()}`,
+        target: `${details.paymentMethod} · ${currency.symbol}${finalTotal.toLocaleString()}${appliedPromo ? ` (${appliedPromo.code} -${appliedPromo.discountPercent}%)` : ''}`,
         user: details.customerName || 'Customer',
         timestamp: 'Just now'
       },
       ...prev
     ]);
     clearCart();
+    setAppliedPromo(null);
     return newOrder;
   };
 
@@ -407,6 +777,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const price = size ? size.price : prod.fromPrice;
     return total + price * item.quantity;
   }, 0);
+
+  const promoDiscountUSD = appliedPromo ? (cartSubtotalUSD * appliedPromo.discountPercent) / 100 : 0;
+  const cartFinalTotalUSD = Math.max(0, cartSubtotalUSD - promoDiscountUSD);
 
   // Admin Actions
   const loginAdmin = () => {
@@ -610,6 +983,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setCurrency,
         formatPrice,
 
+        // Storefront Filters
+        storefrontFilters,
+        activeFilter,
+        setActiveFilter,
+        addStorefrontFilter,
+        deleteStorefrontFilter,
+
         cart,
         cartOpen,
         setCartOpen,
@@ -621,6 +1001,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         submitCheckoutOrder,
         cartCount,
         cartSubtotalUSD,
+        appliedPromo,
+        applyPromoCode,
+        removePromoCode,
+        cartPromoDiscountUSD: promoDiscountUSD,
+        cartFinalTotalUSD,
+
+        // Promo Popup
+        promoPopupConfig,
+        updatePromoPopupConfig,
+        showPromoPopup,
+        setShowPromoPopup,
+        triggerPromoPreview,
+
+        // Policies
+        policies,
+        updatePolicySection,
+
+        // Team
+        teamMembers,
+        toggleTeamMemberActive,
+        updateTeamMember,
+        addTeamMember,
+
+        // Profile
+        userProfile,
+        updateUserProfile,
 
         isAdminAuth,
         loginAdmin,

@@ -11,8 +11,6 @@ interface ProductDetailProps {
 export const ProductDetail: React.FC<ProductDetailProps> = ({ slug }) => {
   const {
     products,
-    navigateToStore,
-    navigateToVariants,
     addToCart,
     formatPrice,
     selectedColorVariant
@@ -65,34 +63,10 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ slug }) => {
     setTimeout(() => setAddedAnimation(false), 1500);
   };
 
-  const hasMultipleVariants = product.colours && product.colours.length > 1;
-
   return (
-    <div className="w-full bg-white text-black min-h-[calc(100vh-60px)] pb-20">
-      {/* Top Navigation */}
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-4 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={hasMultipleVariants ? () => navigateToVariants(product.slug) : navigateToStore}
-          className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-neutral-400 hover:text-black transition-colors cursor-pointer"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>{hasMultipleVariants ? 'Back to Colorways' : 'Back to Catalogue'}</span>
-        </button>
-
-        {hasMultipleVariants && (
-          <button
-            type="button"
-            onClick={() => navigateToVariants(product.slug)}
-            className="text-[10px] uppercase tracking-[0.18em] text-neutral-400 hover:text-black transition-colors cursor-pointer"
-          >
-            Edition: <span className="font-medium text-neutral-800 underline underline-offset-4">{activeColorName}</span>
-          </button>
-        )}
-      </div>
-
+    <div className="w-full bg-white text-black min-h-[calc(100vh-60px)] pb-24">
       {/* Centered Product Detail Layout */}
-      <div className="max-w-xl mx-auto px-4 flex flex-col items-center text-center mt-2">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 flex flex-col items-center text-center pt-6 sm:pt-10">
         {/* Carousel at Top Center (Pure image only + infinite scroll dots) */}
         <div className="w-full max-w-md sm:max-w-lg">
           <ProductGallery
@@ -101,10 +75,10 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ slug }) => {
           />
         </div>
 
-        {/* Directly at the bottom of the carousel */}
-        <div className="w-full flex flex-col items-center mt-6 space-y-3.5">
-          {/* Product Name (stylish serif font) */}
-          <h1 className="text-base sm:text-lg md:text-xl font-serif font-normal uppercase tracking-[0.2em] text-neutral-900 leading-snug">
+        {/* Directly at the bottom of the carousel: Price, Sizing, Add to Cart */}
+        <div className="w-full flex flex-col items-center mt-7 space-y-4 max-w-md">
+          {/* Product Name (refined editorial typography) */}
+          <h1 className="text-base sm:text-lg font-serif font-normal uppercase tracking-[0.24em] text-neutral-900 leading-snug">
             {product.name}
           </h1>
 
@@ -113,39 +87,39 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ slug }) => {
             {formatPrice(activePrice)}
           </div>
 
-          {/* Sizing: Simple, well-designed button opening dismissable popup */}
+          {/* Sizing: Simple, architectural button opening dismissable popup (no excessive rounding) */}
           {product.sizes && product.sizes.length > 0 && (
             <div className="pt-1">
               <button
                 id="sizing-modal-trigger-btn"
                 type="button"
                 onClick={() => setShowSizeModal(true)}
-                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-neutral-200 hover:border-black text-[11px] uppercase tracking-[0.16em] text-neutral-700 hover:text-black bg-neutral-50 hover:bg-white transition-all cursor-pointer shadow-2xs"
+                className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-sm border border-neutral-300 hover:border-black text-[11px] uppercase tracking-[0.18em] text-neutral-800 hover:text-black bg-white transition-colors cursor-pointer"
               >
                 <span>Size: {selectedSize?.label} ({selectedSize?.width} × {selectedSize?.depth} cm)</span>
-                <ChevronDown className="w-3 h-3 text-neutral-400" />
+                <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />
               </button>
             </div>
           )}
 
-          {/* Add to Cart: Small Button */}
-          <div className="pt-2">
+          {/* Add to Cart: Small Button with subtle corners */}
+          <div className="pt-1.5">
             <button
               id="add-to-cart-btn"
               type="button"
               onClick={handleAddToCart}
               disabled={isSoldOut}
-              className={`px-6 py-2 text-[10px] uppercase tracking-[0.22em] font-medium rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs ${
+              className={`px-7 py-2.5 text-[10px] sm:text-[11px] uppercase tracking-[0.25em] font-medium rounded-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs ${
                 isSoldOut
                   ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
                   : addedAnimation
-                  ? 'bg-neutral-800 text-white scale-98'
-                  : 'bg-black text-white hover:bg-neutral-800 active:scale-95'
+                  ? 'bg-neutral-800 text-white'
+                  : 'bg-black text-white hover:bg-neutral-800 active:scale-98'
               }`}
             >
               {addedAnimation ? (
                 <>
-                  <Check className="w-3 h-3" />
+                  <Check className="w-3.5 h-3.5" />
                   <span>Added to Cart</span>
                 </>
               ) : isSoldOut ? (
@@ -156,14 +130,14 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ slug }) => {
             </button>
           </div>
 
-          {/* Material note */}
-          <p className="pt-2 text-[11px] text-neutral-400 font-light max-w-sm">
-            {product.material}
+          {/* Material & Atelier note */}
+          <p className="pt-2 text-[11px] text-neutral-400 font-light max-w-sm tracking-wide leading-relaxed">
+            {product.material} · {product.leadTime}
           </p>
         </div>
       </div>
 
-      {/* Easily Dismissable Sizing Popup Modal */}
+      {/* Easily Dismissable Sizing Popup Modal (Clean architectural modal with rounded-sm) */}
       <AnimatePresence>
         {showSizeModal && (
           <div
@@ -171,18 +145,18 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ slug }) => {
             onClick={() => setShowSizeModal(false)}
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 8 }}
+              initial={{ opacity: 0, scale: 0.96, y: 6 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 8 }}
+              exit={{ opacity: 0, scale: 0.96, y: 6 }}
               transition={{ duration: 0.15 }}
               onClick={e => e.stopPropagation()}
-              className="bg-white border border-neutral-200 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-left relative"
+              className="bg-white border border-neutral-200 rounded-sm shadow-xl max-w-sm w-full p-6 text-left relative"
             >
               {/* Close Button */}
               <button
                 type="button"
                 onClick={() => setShowSizeModal(false)}
-                className="absolute top-5 right-5 p-1 text-neutral-400 hover:text-black cursor-pointer transition-colors"
+                className="absolute top-4 right-4 p-1 text-neutral-400 hover:text-black cursor-pointer transition-colors"
                 aria-label="Close size options"
               >
                 <X className="w-4 h-4" />
@@ -206,9 +180,9 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ slug }) => {
                         setSelectedSizeId(size.id);
                         setShowSizeModal(false);
                       }}
-                      className={`w-full flex items-center justify-between p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                      className={`w-full flex items-center justify-between p-3 rounded-sm border text-left transition-all cursor-pointer ${
                         isSelected
-                          ? 'border-black bg-neutral-50 font-medium ring-1 ring-black'
+                          ? 'border-black bg-neutral-50 font-medium'
                           : 'border-neutral-200 hover:border-neutral-400 bg-white'
                       }`}
                     >

@@ -6,6 +6,7 @@ import { ProductDetail } from './components/storefront/ProductDetail';
 import { ProductVariantsView } from './components/storefront/ProductVariantsView';
 import { CartPage } from './components/storefront/CartPage';
 import { PoliciesPage } from './components/storefront/PoliciesPage';
+import { PromoPopup } from './components/storefront/PromoPopup';
 import { Footer } from './components/storefront/Footer';
 import { CookieBanner } from './components/storefront/CookieBanner';
 import { StoreModals } from './components/storefront/StoreModals';
@@ -114,6 +115,7 @@ const MainAppContent: React.FC = () => {
             <Footer />
             <CookieBanner />
             <StoreModals />
+            <PromoPopup />
           </motion.div>
         )}
       </AnimatePresence>

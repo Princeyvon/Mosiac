@@ -48,26 +48,26 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({ images, productN
             <button
               type="button"
               onClick={handlePrev}
-              className="absolute left-1 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/70 hover:bg-white text-neutral-700 hover:text-black shadow-xs transition-all opacity-80 hover:opacity-100 cursor-pointer"
+              className="absolute left-1.5 top-1/2 -translate-y-1/2 p-2 rounded-sm bg-white/90 hover:bg-white border border-neutral-200/80 text-neutral-700 hover:text-black shadow-2xs transition-all opacity-80 hover:opacity-100 cursor-pointer"
               aria-label="Previous image"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-3.5 h-3.5" />
             </button>
             <button
               type="button"
               onClick={handleNext}
-              className="absolute right-1 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/70 hover:bg-white text-neutral-700 hover:text-black shadow-xs transition-all opacity-80 hover:opacity-100 cursor-pointer"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 rounded-sm bg-white/90 hover:bg-white border border-neutral-200/80 text-neutral-700 hover:text-black shadow-2xs transition-all opacity-80 hover:opacity-100 cursor-pointer"
               aria-label="Next image"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </>
         )}
       </div>
 
-      {/* Scrolling dots indicator */}
+      {/* Scrolling dashes indicator */}
       {count > 1 && (
-        <div className="flex items-center justify-center gap-1.5 mt-3">
+        <div className="flex items-center justify-center gap-1.5 mt-3.5">
           {safeImages.map((_, idx) => {
             const isActive = idx === activeIndex;
             return (
@@ -75,10 +75,10 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({ images, productN
                 key={idx}
                 type="button"
                 onClick={() => setActiveIndex(idx)}
-                className={`transition-all duration-200 cursor-pointer ${
+                className={`transition-all duration-200 cursor-pointer h-0.5 ${
                   isActive
-                    ? 'w-5 h-1.5 bg-black rounded-full'
-                    : 'w-1.5 h-1.5 bg-neutral-300 hover:bg-neutral-500 rounded-full'
+                    ? 'w-6 bg-black rounded-xs'
+                    : 'w-2 bg-neutral-300 hover:bg-neutral-500 rounded-xs'
                 }`}
                 aria-label={`Go to slide ${idx + 1}`}
               />

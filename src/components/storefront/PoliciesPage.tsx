@@ -3,7 +3,7 @@ import { useStore } from '../../context/StoreContext';
 import { ArrowLeft, Shield, Truck, RotateCcw, Cookie, Lock, Mail, Info, Search, CheckCircle, Clock } from 'lucide-react';
 
 export const PoliciesPage: React.FC = () => {
-  const { navigateToStore, orders, formatPrice } = useStore();
+  const { orders, formatPrice, policies } = useStore();
   const [activeTab, setActiveTab] = useState<'legal' | 'orders' | 'privacy' | 'cookies' | 'shipping' | 'returns' | 'about' | 'contact'>('legal');
 
   // Interactive Order Lookup state
@@ -28,6 +28,12 @@ export const PoliciesPage: React.FC = () => {
     setContactSubmitted(true);
   };
 
+  // Helper to retrieve custom policy content if edited in dash
+  const getPolicyContent = (id: string, defaultText: string) => {
+    const p = policies?.find(x => x.id === id);
+    return p ? p.content : defaultText;
+  };
+
   const tabs = [
     { id: 'legal', label: 'Terms & Conditions', icon: Shield },
     { id: 'orders', label: 'Order Status & Tracking', icon: Clock },
@@ -35,24 +41,12 @@ export const PoliciesPage: React.FC = () => {
     { id: 'returns', label: 'Returns & Guarantee', icon: RotateCcw },
     { id: 'privacy', label: 'Privacy Policy', icon: Lock },
     { id: 'cookies', label: 'Cookies Policy', icon: Cookie },
-    { id: 'about', label: 'About FORMA', icon: Info },
+    { id: 'about', label: 'About Mosiac', icon: Info },
     { id: 'contact', label: 'Contact & Atelier', icon: Mail },
   ] as const;
 
   return (
-    <div className="w-full bg-white text-neutral-900 min-h-[calc(100vh-60px)] pb-24">
-      {/* Top Left Navigation */}
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-5">
-        <button
-          type="button"
-          onClick={navigateToStore}
-          className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-neutral-500 hover:text-black transition-colors cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Catalogue</span>
-        </button>
-      </div>
-
+    <div className="w-full bg-white text-neutral-900 min-h-[calc(100vh-60px)] pb-24 pt-6 sm:pt-8">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-8">
         <div className="mb-8 sm:mb-12">
           <span className="text-[10px] uppercase tracking-[0.3em] text-neutral-400 font-mono block mb-2">
@@ -66,7 +60,7 @@ export const PoliciesPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
           {/* Left Sidebar Menu */}
           <div className="lg:col-span-4 xl:col-span-3 space-y-1">
-            <div className="bg-neutral-50 p-2 rounded-2xl border border-neutral-100 sticky top-20">
+            <div className="bg-neutral-50 p-2 rounded-sm border border-neutral-200 sticky top-20">
               {tabs.map(tab => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -75,13 +69,13 @@ export const PoliciesPage: React.FC = () => {
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-xs font-medium uppercase tracking-[0.14em] transition-all cursor-pointer ${
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-sm text-left text-xs font-medium uppercase tracking-[0.14em] transition-all cursor-pointer ${
                       isActive
-                        ? 'bg-white text-black shadow-xs font-semibold'
-                        : 'text-neutral-500 hover:text-black hover:bg-neutral-100/60'
+                        ? 'bg-black text-white font-semibold'
+                        : 'text-neutral-500 hover:text-black hover:bg-neutral-200/50'
                     }`}
                   >
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-black' : 'text-neutral-400'}`} />
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-neutral-400'}`} />
                     <span>{tab.label}</span>
                   </button>
                 );
@@ -90,20 +84,23 @@ export const PoliciesPage: React.FC = () => {
           </div>
 
           {/* Right Main Content Area */}
-          <div className="lg:col-span-8 xl:col-span-9 bg-white border border-neutral-100 rounded-2xl p-6 sm:p-10 shadow-2xs">
+          <div className="lg:col-span-8 xl:col-span-9 bg-white border border-neutral-200 rounded-sm p-6 sm:p-10 shadow-xs">
             {/* 1. Legal & Terms */}
             {activeTab === 'legal' && (
               <div className="space-y-6">
                 <h2 className="text-xl font-serif uppercase tracking-wider text-neutral-900 border-b border-neutral-100 pb-3">
                   Terms & Conditions of Sale
                 </h2>
-                <div className="space-y-4 text-xs text-neutral-600 leading-relaxed font-light">
+                <div className="space-y-4 text-xs text-neutral-600 leading-relaxed font-light whitespace-pre-line">
                   <p>
-                    Welcome to FORMA Studio. By accessing our platform, viewing our catalogue, or acquiring works from our atelier, you agree to comply with and be bound by the following studio terms and conditions.
+                    {getPolicyContent(
+                      'legal',
+                      'Welcome to Mosiac Studio. By accessing our platform, viewing our catalogue, or acquiring works from our atelier, you agree to comply with and be bound by the studio terms and conditions.'
+                    )}
                   </p>
                   <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-900 pt-2">1. Atelier Authenticity & Craftsmanship</h3>
                   <p>
-                    Every textile and architectural artifact presented by FORMA is individually crafted by master artisans using organic New Zealand virgin wool, botanical luster fibers, and museum-grade dyes. Slight organic variations in pile height, contour beveling, and subtle tone gradients are intrinsic hallmarks of authentic artisanal creation rather than manufacturing defects.
+                    Every textile and architectural artifact presented by Mosiac is individually crafted by master artisans using organic New Zealand virgin wool, botanical luster fibers, and museum-grade dyes. Slight organic variations in pile height, contour beveling, and subtle tone gradients are intrinsic hallmarks of authentic artisanal creation rather than manufacturing defects.
                   </p>
                   <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-900 pt-2">2. Pricing & Bespoke Quotes</h3>
                   <p>
@@ -111,7 +108,7 @@ export const PoliciesPage: React.FC = () => {
                   </p>
                   <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-900 pt-2">3. Intellectual Property</h3>
                   <p>
-                    All patterns, sculptural forms, textile motifs (including the Uzu Enso brushwork and Strata wave geometries), photographs, and typographic designs are the exclusive intellectual property of FORMA Studio Ltd. Unauthorized reproduction or commercial emulation is strictly prohibited.
+                    All patterns, sculptural forms, textile motifs, photographs, and typographic designs are the exclusive intellectual property of Mosiac Studio Ltd. Unauthorized reproduction or commercial emulation is strictly prohibited.
                   </p>
                 </div>
               </div>
@@ -133,11 +130,11 @@ export const PoliciesPage: React.FC = () => {
                     value={orderQuery}
                     onChange={(e) => setOrderQuery(e.target.value)}
                     placeholder="Enter order reference (e.g. ORD-9021)"
-                    className="flex-1 bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-xs uppercase font-mono focus:outline-none focus:border-black"
+                    className="flex-1 bg-neutral-50 border border-neutral-300 rounded-sm px-3.5 py-2 text-xs uppercase font-mono focus:outline-none focus:border-black"
                   />
                   <button
                     type="submit"
-                    className="px-5 py-2.5 bg-black text-white text-xs uppercase tracking-widest rounded-xl hover:bg-neutral-800 transition-colors cursor-pointer flex items-center gap-1.5"
+                    className="px-5 py-2 bg-black text-white text-xs uppercase tracking-widest rounded-sm hover:bg-neutral-800 transition-colors cursor-pointer flex items-center gap-1.5"
                   >
                     <Search className="w-3.5 h-3.5" />
                     <span>Track</span>
@@ -145,13 +142,13 @@ export const PoliciesPage: React.FC = () => {
                 </form>
 
                 {searched && foundOrder && (
-                  <div className="mt-6 p-6 rounded-xl bg-neutral-50 border border-neutral-200 text-xs space-y-4">
+                  <div className="mt-6 p-5 rounded-sm bg-neutral-50 border border-neutral-200 text-xs space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <span className="text-[10px] text-neutral-400 uppercase tracking-widest block">Reference</span>
                         <span className="font-mono font-bold text-sm text-neutral-900">{foundOrder.id}</span>
                       </div>
-                      <span className={`px-2.5 py-1 text-[10px] uppercase tracking-widest font-semibold rounded-full ${
+                      <span className={`px-2.5 py-1 text-[10px] uppercase tracking-widest font-semibold rounded-sm ${
                         foundOrder.status === 'Fulfilled' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
                       }`}>
                         {foundOrder.status}
@@ -181,7 +178,7 @@ export const PoliciesPage: React.FC = () => {
                 )}
 
                 {searched && !foundOrder && (
-                  <div className="mt-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+                  <div className="mt-4 p-4 rounded-sm bg-amber-50 border border-amber-200 text-amber-800 text-xs">
                     No active record found for reference "{orderQuery}". Please verify your invoice number or test with recent order <button type="button" onClick={() => { setOrderQuery('ORD-9021'); }} className="underline font-mono font-bold">ORD-9021</button>.
                   </div>
                 )}
@@ -208,7 +205,10 @@ export const PoliciesPage: React.FC = () => {
                 </h2>
                 <div className="space-y-4 text-xs text-neutral-600 leading-relaxed font-light">
                   <p>
-                    FORMA partners exclusively with premier international art-handling logistics carriers. Every rug is rolled on high-rigidity structural tubes and encased in sealed archival moisture-barrier timber crates.
+                    {getPolicyContent(
+                      'shipping',
+                      'Mosiac partners exclusively with premier international art-handling logistics carriers. Every rug is rolled on high-rigidity structural tubes and encased in sealed archival moisture-barrier timber crates.'
+                    )}
                   </p>
                   <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-900 pt-2">Transit Durations</h3>
                   <ul className="list-disc pl-5 space-y-1.5 text-neutral-600">
@@ -232,7 +232,10 @@ export const PoliciesPage: React.FC = () => {
                 </h2>
                 <div className="space-y-4 text-xs text-neutral-600 leading-relaxed font-light">
                   <p>
-                    We want you to experience our textiles under your natural interior light. We offer a 30-day inspection window from the date of physical delivery for standard catalogue editions.
+                    {getPolicyContent(
+                      'returns',
+                      'We want you to experience our textiles under your natural interior light. We offer a 30-day inspection window from the date of physical delivery for standard catalogue editions.'
+                    )}
                   </p>
                   <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-900 pt-2">Return Conditions</h3>
                   <p>
@@ -254,7 +257,10 @@ export const PoliciesPage: React.FC = () => {
                 </h2>
                 <div className="space-y-4 text-xs text-neutral-600 leading-relaxed font-light">
                   <p>
-                    FORMA maintains strict confidentiality regarding our clients, collectors, and architectural partners. We comply with GDPR, CCPA, and global privacy standards.
+                    {getPolicyContent(
+                      'privacy',
+                      'Mosiac maintains strict confidentiality regarding our clients, collectors, and architectural partners. We comply with GDPR, CCPA, and global privacy standards.'
+                    )}
                   </p>
                   <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-900 pt-2">Information Collected</h3>
                   <p>
@@ -262,7 +268,7 @@ export const PoliciesPage: React.FC = () => {
                   </p>
                   <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-900 pt-2">Your Privacy Rights</h3>
                   <p>
-                    You may request complete erasure of your transaction records or export your profile at any time by contacting our data protection officer at <span className="font-mono text-neutral-900">privacy@forma-atelier.com</span>.
+                    You may request complete erasure of your transaction records or export your profile at any time by contacting our data protection officer at <span className="font-mono text-neutral-900">privacy@mosiac-atelier.com</span>.
                   </p>
                 </div>
               </div>
@@ -276,14 +282,17 @@ export const PoliciesPage: React.FC = () => {
                 </h2>
                 <div className="space-y-4 text-xs text-neutral-600 leading-relaxed font-light">
                   <p>
-                    FORMA uses strictly necessary local storage cookies to retain your shopping bag contents, selected studio currency, and catalogue grid density preferences across sessions.
+                    {getPolicyContent(
+                      'cookies',
+                      'Mosiac uses strictly necessary local storage cookies to retain your shopping bag contents, selected studio currency, and catalogue grid density preferences across sessions.'
+                    )}
                   </p>
-                  <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200 flex items-center justify-between">
+                  <div className="p-4 rounded-sm bg-neutral-50 border border-neutral-200 flex items-center justify-between">
                     <div>
                       <div className="text-xs font-semibold text-neutral-900 uppercase tracking-wider">Catalogue Experience Cookies</div>
                       <div className="text-[11px] text-neutral-500">Saves active currency ({formatPrice(100)}) and grid column preferences.</div>
                     </div>
-                    <span className="text-[10px] uppercase font-mono px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full font-semibold">Active</span>
+                    <span className="text-[10px] uppercase font-mono px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-sm font-semibold">Active</span>
                   </div>
                 </div>
               </div>
@@ -293,11 +302,14 @@ export const PoliciesPage: React.FC = () => {
             {activeTab === 'about' && (
               <div className="space-y-6">
                 <h2 className="text-xl font-serif uppercase tracking-wider text-neutral-900 border-b border-neutral-100 pb-3">
-                  About FORMA Studio
+                  About Mosiac Studio
                 </h2>
                 <div className="space-y-4 text-xs text-neutral-600 leading-relaxed font-light">
                   <p>
-                    Founded at the intersection of Japanese Zen minimalism and architectural sculpture, FORMA designs textiles that ground living spaces with intentional tactile presence.
+                    {getPolicyContent(
+                      'about',
+                      'Founded at the intersection of architectural sculpture and artisanal craftsmanship, Mosiac designs textiles that ground living spaces with intentional tactile presence.'
+                    )}
                   </p>
                   <p>
                     Our master weavers hand-tuft and hand-carve each rug using 100% un-dyed New Zealand virgin highland wool, paired with botanically luster-treated silk inlays. We reject synthetic microplastics in favor of renewable natural fleeces that age gracefully and purify indoor air quality.
@@ -320,7 +332,7 @@ export const PoliciesPage: React.FC = () => {
                 </p>
 
                 {contactSubmitted ? (
-                  <div className="p-6 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center gap-3">
+                  <div className="p-5 rounded-sm bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center gap-3">
                     <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
                     <div>
                       <div className="font-semibold uppercase tracking-wider">Inquiry Received</div>
@@ -337,7 +349,7 @@ export const PoliciesPage: React.FC = () => {
                           required
                           value={contactForm.name}
                           onChange={e => setContactForm({ ...contactForm, name: e.target.value })}
-                          className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-black"
+                          className="w-full bg-neutral-50 border border-neutral-300 rounded-sm px-3 py-2 text-xs focus:outline-none focus:border-black"
                           placeholder="Camille Moreau"
                         />
                       </div>
@@ -348,8 +360,8 @@ export const PoliciesPage: React.FC = () => {
                           required
                           value={contactForm.email}
                           onChange={e => setContactForm({ ...contactForm, email: e.target.value })}
-                          className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-black"
-                          placeholder="client@atelier.com"
+                          className="w-full bg-neutral-50 border border-neutral-300 rounded-sm px-3 py-2 text-xs focus:outline-none focus:border-black"
+                          placeholder="client@mosiac.com"
                         />
                       </div>
                     </div>
@@ -361,7 +373,7 @@ export const PoliciesPage: React.FC = () => {
                         required
                         value={contactForm.subject}
                         onChange={e => setContactForm({ ...contactForm, subject: e.target.value })}
-                        className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-black"
+                        className="w-full bg-neutral-50 border border-neutral-300 rounded-sm px-3 py-2 text-xs focus:outline-none focus:border-black"
                       />
                     </div>
 
@@ -373,13 +385,13 @@ export const PoliciesPage: React.FC = () => {
                         value={contactForm.message}
                         onChange={e => setContactForm({ ...contactForm, message: e.target.value })}
                         placeholder="Detail interior dimensions, desired colorway editions, or timeline requirements..."
-                        className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-black"
+                        className="w-full bg-neutral-50 border border-neutral-300 rounded-sm px-3 py-2 text-xs focus:outline-none focus:border-black"
                       />
                     </div>
 
                     <button
                       type="submit"
-                      className="px-6 py-2.5 bg-black text-white text-xs uppercase tracking-[0.2em] font-medium rounded-full hover:bg-neutral-800 transition-colors cursor-pointer"
+                      className="px-6 py-2.5 bg-black text-white text-xs uppercase tracking-[0.2em] font-medium rounded-sm hover:bg-neutral-800 transition-colors cursor-pointer"
                     >
                       Send Atelier Message
                     </button>
@@ -393,7 +405,7 @@ export const PoliciesPage: React.FC = () => {
                   </div>
                   <div>
                     <span className="font-semibold text-neutral-900 block uppercase tracking-wider text-[10px]">Concierge Contact</span>
-                    <span className="font-mono leading-relaxed block">concierge@forma-atelier.com</span>
+                    <span className="font-mono leading-relaxed block">concierge@mosiac-atelier.com</span>
                     <span className="font-mono leading-relaxed block">+33 1 42 68 00 90</span>
                   </div>
                 </div>

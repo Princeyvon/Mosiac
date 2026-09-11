@@ -79,3 +79,54 @@ export interface AuditLog {
   user: string;
   timestamp: string;
 }
+
+export interface StorefrontFilter {
+  id: string;
+  label: string;
+  slug: string;
+}
+
+export interface PromoPopupConfig {
+  enabled: boolean;
+  delaySeconds: number; // default 30
+  badgeText: string; // e.g. "sample sale"
+  eyebrow: string; // e.g. "ONLINE SAMPLE SALE NOW LIVE!"
+  headline: string; // e.g. "Shop up to 70% off select sample sale items!"
+  subtext: string; // e.g. "Ends September 7th."
+  buttonText: string; // e.g. "SHOP NOW!"
+  discountCode: string; // e.g. "SAMPLE70"
+  imageUrl: string;
+  filterTag?: string;
+}
+
+export interface PolicySection {
+  id: string;
+  title: string;
+  content: string;
+  lastUpdated: string;
+}
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+  role: 'Studio Director' | 'Senior Curator' | 'Atelier Manager' | 'Logistics Lead';
+  active: boolean;
+  pin: string;
+  password?: string;
+  avatar?: string;
+  lastActive: string;
+}
+
+export interface UserProfile {
+  name: string;
+  username: string;
+  email: string;
+  role: string;
+  pin: string;
+  avatar: string;
+  bio: string;
+  notificationsEnabled: boolean;
+}
+
