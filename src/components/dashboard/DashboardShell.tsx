@@ -23,6 +23,7 @@ import {
   ArrowRight,
   CheckCircle2
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 export const DashboardShell: React.FC = () => {
   const {
@@ -49,7 +50,12 @@ export const DashboardShell: React.FC = () => {
   if (!isAdminAuth) {
     return (
       <div className="min-h-screen bg-neutral-100 flex items-center justify-center p-4">
-        <div className="bg-white border border-neutral-200 rounded-xl shadow-xl w-full max-w-md p-8 text-neutral-900">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+          className="bg-white border border-neutral-200 rounded-xl shadow-xl w-full max-w-md p-8 text-neutral-900"
+        >
           <div className="text-center mb-8">
             <span className="font-serif italic text-3xl font-normal text-black block mb-1">
               Forma
@@ -93,21 +99,22 @@ export const DashboardShell: React.FC = () => {
             </div>
 
             <div className="pt-2">
-              <button
+              <motion.button
                 id="dash-login-btn"
                 type="submit"
-                className="w-full bg-black text-white hover:bg-neutral-800 transition-colors py-3 rounded-lg text-[11px] uppercase tracking-widest font-semibold flex items-center justify-center gap-2 shadow-xs"
+                whileTap={{ scale: 0.98 }}
+                className="w-full bg-black text-white hover:bg-neutral-800 transition-colors py-3 rounded-lg text-[11px] uppercase tracking-widest font-semibold flex items-center justify-center gap-2 shadow-xs cursor-pointer"
               >
                 <Lock className="w-3.5 h-3.5" />
                 <span>Enter Studio Dashboard</span>
-              </button>
+              </motion.button>
             </div>
 
             <div className="pt-4 border-t border-neutral-100 flex justify-between items-center text-[11px] text-neutral-500">
               <button
                 type="button"
                 onClick={navigateToStore}
-                className="hover:text-black transition-colors"
+                className="hover:text-black transition-colors cursor-pointer"
               >
                 ← Return to Storefront
               </button>
@@ -116,7 +123,7 @@ export const DashboardShell: React.FC = () => {
               </span>
             </div>
           </form>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -157,12 +164,13 @@ export const DashboardShell: React.FC = () => {
         {/* Right Chrome Controls: PUBLISH, Bell, + NEW PRODUCT, Avatar badge, Logout */}
         <div className="flex items-center gap-2.5 sm:gap-3.5">
           {/* PUBLISH Button (Outline pill, cloud-upload icon) */}
-          <button
+          <motion.button
             id="dash-global-publish-btn"
             type="button"
+            whileTap={{ scale: 0.95 }}
             onClick={publishStagedChanges}
             title="Push staged catalogue edits live to storefront"
-            className={`inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-full text-[11px] font-semibold tracking-wider uppercase border transition-all duration-150 ${
+            className={`inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-full text-[11px] font-semibold tracking-wider uppercase border transition-all duration-150 cursor-pointer ${
               hasUnpublishedChanges
                 ? 'border-amber-500 bg-amber-50 text-amber-900 hover:bg-amber-100 ring-2 ring-amber-200 animate-pulse'
                 : 'border-neutral-300 bg-white text-neutral-700 hover:border-black hover:text-black'
@@ -173,47 +181,58 @@ export const DashboardShell: React.FC = () => {
               {hasUnpublishedChanges ? 'Publish (Staged Changes)' : 'Publish'}
             </span>
             <span className="sm:hidden">Publish</span>
-          </button>
+          </motion.button>
 
           {/* Notification Bell */}
           <div className="relative">
-            <button
+            <motion.button
               type="button"
+              whileTap={{ scale: 0.92 }}
               onClick={() => setShowNotifications(!showNotifications)}
-              className="p-2 text-neutral-500 hover:text-black hover:bg-neutral-100 rounded-full transition-colors relative"
+              className="p-2 text-neutral-500 hover:text-black hover:bg-neutral-100 rounded-full transition-colors relative cursor-pointer"
               aria-label="Notifications"
             >
               <Bell className="w-4 h-4" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-500 rounded-full" />
-            </button>
+            </motion.button>
 
-            {showNotifications && (
-              <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-neutral-200 rounded-lg shadow-xl p-3 z-50 text-xs">
-                <div className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider mb-2">
-                  Studio Notifications
-                </div>
-                <div className="space-y-2">
-                  {notifications.map((msg, idx) => (
-                    <div key={idx} className="p-2 bg-neutral-50 rounded text-neutral-700 text-[11px] leading-snug">
-                      {msg}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <AnimatePresence>
+              {showNotifications && (
+                <motion.div
+                  key="notifications-popup"
+                  initial={{ opacity: 0, scale: 0.95, y: -6 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -6 }}
+                  transition={{ duration: 0.15, ease: 'easeOut' }}
+                  className="absolute right-0 top-full mt-2 w-72 bg-white border border-neutral-200 rounded-lg shadow-xl p-3 z-50 text-xs"
+                >
+                  <div className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider mb-2">
+                    Studio Notifications
+                  </div>
+                  <div className="space-y-2">
+                    {notifications.map((msg, idx) => (
+                      <div key={idx} className="p-2 bg-neutral-50 rounded text-neutral-700 text-[11px] leading-snug">
+                        {msg}
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Primary + NEW [PRODUCT] button (Solid black pill) */}
-          <button
+          <motion.button
             id="dash-top-new-product-btn"
             type="button"
+            whileTap={{ scale: 0.95 }}
             onClick={() => createNewProduct()}
-            className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-[11px] font-semibold tracking-wider uppercase bg-black text-white hover:bg-neutral-800 transition-colors shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-[11px] font-semibold tracking-wider uppercase bg-black text-white hover:bg-neutral-800 transition-colors shadow-xs cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">New Product</span>
             <span className="sm:hidden">New</span>
-          </button>
+          </motion.button>
 
           {/* Account badge: Avatar circle with initial + role label */}
           <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-neutral-200">
@@ -229,7 +248,7 @@ export const DashboardShell: React.FC = () => {
           <button
             type="button"
             onClick={logoutAdmin}
-            className="p-2 text-neutral-400 hover:text-black rounded-full transition-colors"
+            className="p-2 text-neutral-400 hover:text-black rounded-full transition-colors cursor-pointer"
             title="Sign out of dashboard"
           >
             <LogOut className="w-4 h-4" />
@@ -252,14 +271,15 @@ export const DashboardShell: React.FC = () => {
               const isActive = activeAdminTab === item.id && !editingProductId;
 
               return (
-                <button
+                <motion.button
                   key={item.id}
                   type="button"
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => {
                     setActiveAdminTab(item.id);
                   }}
                   title={collapsed ? item.label : undefined}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-full text-xs font-semibold tracking-wide transition-all ${
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                     isActive
                       ? 'bg-black text-white shadow-xs'
                       : 'text-neutral-600 hover:bg-neutral-100 hover:text-black'
@@ -267,7 +287,7 @@ export const DashboardShell: React.FC = () => {
                 >
                   <Icon className="w-4 h-4 shrink-0" />
                   {!collapsed && <span>{item.label}</span>}
-                </button>
+                </motion.button>
               );
             })}
           </div>
@@ -279,7 +299,7 @@ export const DashboardShell: React.FC = () => {
               type="button"
               onClick={navigateToStore}
               title={collapsed ? 'View website' : undefined}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-neutral-600 hover:bg-neutral-100 hover:text-black transition-colors"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-neutral-600 hover:bg-neutral-100 hover:text-black transition-colors cursor-pointer"
             >
               <ExternalLink className="w-4 h-4 shrink-0" />
               {!collapsed && <span>View website</span>}
@@ -289,7 +309,7 @@ export const DashboardShell: React.FC = () => {
             <button
               type="button"
               onClick={() => setCollapsed(!collapsed)}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer"
             >
               {collapsed ? (
                 <ChevronRight className="w-4 h-4 shrink-0" />
@@ -305,15 +325,25 @@ export const DashboardShell: React.FC = () => {
 
         {/* MAIN VIEW AREA */}
         <main className="flex-1 p-4 sm:p-8 max-w-[1600px] w-full mx-auto overflow-y-auto">
-          {editingProductId ? (
-            <ProductEditForm productId={editingProductId} />
-          ) : activeAdminTab === 'catalogue' ? (
-            <CatalogueTable />
-          ) : activeAdminTab === 'overview' ? (
-            <DashboardOverview />
-          ) : (
-            <DashboardSubViews activeTab={activeAdminTab} />
-          )}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={editingProductId || activeAdminTab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+            >
+              {editingProductId ? (
+                <ProductEditForm productId={editingProductId} />
+              ) : activeAdminTab === 'catalogue' ? (
+                <CatalogueTable />
+              ) : activeAdminTab === 'overview' ? (
+                <DashboardOverview />
+              ) : (
+                <DashboardSubViews activeTab={activeAdminTab} />
+              )}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
     </div>

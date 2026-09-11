@@ -124,7 +124,7 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({ images, productN
       </div>
 
       {/* Horizontal Filmstrip of Thumbnails */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+      <div className="flex items-center justify-center gap-2 overflow-x-auto pb-1 scrollbar-none">
         {safeImages.map((imgUrl, idx) => (
           <button
             key={idx}
