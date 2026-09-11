@@ -1,5 +1,5 @@
 import React from 'react';
-import { useStore } from '../../context/StoreContext';
+import { useStore, getOneWordName } from '../../context/StoreContext';
 import { motion } from 'motion/react';
 
 interface ProductVariantsViewProps {
@@ -25,6 +25,8 @@ export const ProductVariantsView: React.FC<ProductVariantsViewProps> = ({ slug }
     );
   }
 
+  const baseName = getOneWordName(product.name);
+
   // Get matching image for each color variant
   const getVariantImage = (index: number) => {
     if (index === 0 && product.cardImage) return product.cardImage;
@@ -35,10 +37,10 @@ export const ProductVariantsView: React.FC<ProductVariantsViewProps> = ({ slug }
 
   return (
     <div className="w-full bg-white min-h-[calc(100vh-60px)] py-8 sm:py-14">
-      {/* Pure, organized variants grid with zero extraneous text as requested */}
+      {/* Pure, organized variants grid with seamless canvas and "Name — Color" labeling */}
       <div className="max-w-6xl mx-auto px-4 sm:px-8">
         <div
-          className={`grid gap-6 sm:gap-10 items-center justify-center ${
+          className={`grid gap-8 sm:gap-12 items-center justify-center ${
             product.colours.length === 2
               ? 'grid-cols-1 md:grid-cols-2 max-w-3xl mx-auto'
               : product.colours.length === 3
@@ -54,18 +56,25 @@ export const ProductVariantsView: React.FC<ProductVariantsViewProps> = ({ slug }
               <motion.div
                 key={color.id || color.name}
                 id={`variant-option-${color.name.toLowerCase().replace(/\s+/g, '-')}`}
-                whileHover={{ y: -3 }}
+                whileHover={{ y: -4 }}
                 transition={{ duration: 0.2 }}
                 onClick={() => navigateToPDP(product.slug, color.name)}
-                className="group flex flex-col items-center bg-[#fafafa] hover:bg-[#f3f3f3] transition-colors p-6 sm:p-8 rounded-sm cursor-pointer select-none"
+                className="group flex flex-col items-center bg-transparent cursor-pointer select-none p-2 sm:p-4"
               >
-                {/* Variant Image */}
+                {/* Seamless Canvas Variant Image */}
                 <div className="w-full aspect-square flex items-center justify-center p-2 sm:p-4 overflow-hidden">
                   <img
                     src={variantImg}
-                    alt={`${product.name} ${color.name}`}
-                    className="w-full h-full object-contain transition-transform duration-500 ease-out group-hover:scale-105"
+                    alt={`${baseName} — ${color.name}`}
+                    className="w-full h-full object-contain transition-all duration-500 ease-out group-hover:scale-105"
                   />
+                </div>
+
+                {/* Variant Name: Name — Color */}
+                <div className="mt-3 text-center">
+                  <h3 className="text-[11px] sm:text-xs font-medium tracking-[0.2em] uppercase font-serif text-neutral-800 group-hover:text-black transition-colors">
+                    {baseName} — {color.name}
+                  </h3>
                 </div>
               </motion.div>
             );

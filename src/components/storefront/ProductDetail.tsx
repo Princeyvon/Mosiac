@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useStore } from '../../context/StoreContext';
+import { useStore, getOneWordName } from '../../context/StoreContext';
 import { ProductGallery } from './ProductGallery';
 import { ArrowLeft, Check, X, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -77,9 +77,9 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ slug }) => {
 
         {/* Directly at the bottom of the carousel: Price, Sizing, Add to Cart */}
         <div className="w-full flex flex-col items-center mt-7 space-y-4 max-w-md">
-          {/* Product Name (refined editorial typography) */}
+          {/* Product Name (One word + color variant if selected) */}
           <h1 className="text-base sm:text-lg font-serif font-normal uppercase tracking-[0.24em] text-neutral-900 leading-snug">
-            {product.name}
+            {activeColorName ? `${getOneWordName(product.name)} — ${activeColorName}` : getOneWordName(product.name)}
           </h1>
 
           {/* Price */}

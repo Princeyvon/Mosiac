@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
-import { SlidersHorizontal, Plus, Trash2, Check, Sparkles, Tag, ExternalLink } from 'lucide-react';
+import { SlidersHorizontal, Plus, Trash2, Check, Sparkles, Tag, ExternalLink, Eye, EyeOff } from 'lucide-react';
 
 export const FiltersManagementView: React.FC = () => {
   const {
     storefrontFilters,
+    showStorefrontFilters,
+    toggleStorefrontFilters,
     addStorefrontFilter,
     deleteStorefrontFilter,
     navigateToStore,
@@ -77,6 +79,55 @@ export const FiltersManagementView: React.FC = () => {
             <span>{isAdding ? 'Cancel' : 'Add New Filter'}</span>
           </button>
         </div>
+      </div>
+
+      {/* Storefront Filter Visibility Master Control */}
+      <div className="bg-white border border-neutral-200 rounded-sm p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+        <div className="flex items-start sm:items-center gap-3.5">
+          <div className={`w-10 h-10 rounded-sm flex items-center justify-center shrink-0 ${showStorefrontFilters ? 'bg-black text-white' : 'bg-neutral-100 text-neutral-400'}`}>
+            {showStorefrontFilters ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-neutral-900 flex items-center gap-2">
+              <span>Storefront Filter Bar Display</span>
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-sm uppercase tracking-wider ${
+                showStorefrontFilters 
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                  : 'bg-neutral-100 text-neutral-500 border border-neutral-200'
+              }`}>
+                {showStorefrontFilters ? 'Currently Visible' : 'Currently Hidden'}
+              </span>
+            </div>
+            <p className="text-[11px] text-neutral-500 mt-1">
+              {showStorefrontFilters
+                ? 'Category filters are displayed in the center of the desktop header. (Hidden automatically on mobile devices).'
+                : 'Category filters are currently hidden on the storefront for a pure minimal canvas layout.'}
+            </p>
+          </div>
+        </div>
+
+        <button
+          id="toggle-storefront-filters-btn"
+          type="button"
+          onClick={toggleStorefrontFilters}
+          className={`inline-flex items-center justify-center gap-2 px-4 py-2 text-xs uppercase font-semibold tracking-wider rounded-sm transition-all cursor-pointer whitespace-nowrap ${
+            showStorefrontFilters
+              ? 'bg-white border border-neutral-300 text-neutral-800 hover:border-black hover:bg-neutral-50'
+              : 'bg-black border border-black text-white hover:bg-neutral-800 shadow-xs'
+          }`}
+        >
+          {showStorefrontFilters ? (
+            <>
+              <EyeOff className="w-3.5 h-3.5" />
+              <span>Hide Filters</span>
+            </>
+          ) : (
+            <>
+              <Eye className="w-3.5 h-3.5" />
+              <span>Show Filters</span>
+            </>
+          )}
+        </button>
       </div>
 
       {/* Live Simulation Banner */}

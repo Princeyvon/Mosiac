@@ -44,10 +44,17 @@ interface StoreContextType {
 
   // Storefront Filters
   storefrontFilters: StorefrontFilter[];
+  showStorefrontFilters: boolean;
+  setShowStorefrontFilters: (show: boolean) => void;
+  toggleStorefrontFilters: () => void;
   activeFilter: string;
   setActiveFilter: (slug: string) => void;
   addStorefrontFilter: (label: string, slug?: string) => void;
   deleteStorefrontFilter: (id: string) => void;
+
+  // Custom Rug Pop-up (Instagram DM)
+  showCustomRugPopup: boolean;
+  setShowCustomRugPopup: (show: boolean) => void;
 
   // Currency
   currency: Currency;
@@ -116,14 +123,22 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
+export const getOneWordName = (name: string): string => {
+  if (!name) return 'PRODUCT';
+  const firstPart = name.split('—')[0].split('-')[0].trim();
+  const word = firstPart.split(/\s+/)[0].trim().toUpperCase();
+  return word || 'PRODUCT';
+};
+
 const STORAGE_KEYS = {
-  LIVE_PRODUCTS: 'forma_live_products_v2',
-  STAGED_PRODUCTS: 'forma_staged_products_v2',
+  LIVE_PRODUCTS: 'mosiac_live_products_v4',
+  STAGED_PRODUCTS: 'mosiac_staged_products_v4',
   CART: 'forma_cart_v2',
   CURRENCY: 'forma_currency_v2',
   COOKIES: 'forma_cookie_consent_v1',
   ADMIN_AUTH: 'forma_admin_auth_v1',
-  FILTERS: 'mosiac_filters_v1',
+  FILTERS: 'mosiac_filters_v2',
+  SHOW_FILTERS: 'mosiac_show_filters_v1',
   PROMO_CONFIG: 'mosiac_promo_config_v1',
   POLICIES: 'mosiac_policies_v1',
   TEAM: 'mosiac_team_v1',
@@ -347,6 +362,27 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Storefront Filters (managed in Studio Dash)
+  const [showStorefrontFilters, setShowStorefrontFiltersState] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.SHOW_FILTERS);
+      return saved !== null ? JSON.parse(saved) : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const setShowStorefrontFilters = (val: boolean) => {
+    setShowStorefrontFiltersState(val);
+    try {
+      localStorage.setItem(STORAGE_KEYS.SHOW_FILTERS, JSON.stringify(val));
+    } catch {}
+    showToast(val ? 'Storefront filters are now visible' : 'Storefront filters are now hidden');
+  };
+
+  const toggleStorefrontFilters = () => {
+    setShowStorefrontFilters(!showStorefrontFilters);
+  };
+
   const [storefrontFilters, setStorefrontFilters] = useState<StorefrontFilter[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.FILTERS);
@@ -382,6 +418,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (activeFilter !== 'all') setActiveFilter('all');
     showToast('Filter removed');
   };
+
+  // Custom Rug Pop-up state (45-sec trigger to Instagram DM)
+  const [showCustomRugPopup, setShowCustomRugPopup] = useState(false);
 
   // Promo Pop-up Configuration
   const [promoPopupConfig, setPromoPopupConfig] = useState<PromoPopupConfig>(() => {
@@ -985,10 +1024,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         // Storefront Filters
         storefrontFilters,
+        showStorefrontFilters,
+        setShowStorefrontFilters,
+        toggleStorefrontFilters,
         activeFilter,
         setActiveFilter,
         addStorefrontFilter,
         deleteStorefrontFilter,
+
+        // Custom Rug Popup
+        showCustomRugPopup,
+        setShowCustomRugPopup,
 
         cart,
         cartOpen,

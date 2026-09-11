@@ -7,6 +7,7 @@ import { ProductVariantsView } from './components/storefront/ProductVariantsView
 import { CartPage } from './components/storefront/CartPage';
 import { PoliciesPage } from './components/storefront/PoliciesPage';
 import { PromoPopup } from './components/storefront/PromoPopup';
+import { CustomRugPopup } from './components/storefront/CustomRugPopup';
 import { Footer } from './components/storefront/Footer';
 import { CookieBanner } from './components/storefront/CookieBanner';
 import { StoreModals } from './components/storefront/StoreModals';
@@ -116,6 +117,7 @@ const MainAppContent: React.FC = () => {
             <CookieBanner />
             <StoreModals />
             <PromoPopup />
+            <CustomRugPopup />
           </motion.div>
         )}
       </AnimatePresence>

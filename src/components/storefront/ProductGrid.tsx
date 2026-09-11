@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useStore } from '../../context/StoreContext';
+import { useStore, getOneWordName } from '../../context/StoreContext';
 import { motion } from 'motion/react';
 import { Product } from '../../types';
 
@@ -73,29 +73,31 @@ export const ProductGrid: React.FC = () => {
             }`}
           >
             {filteredProducts.map(product => {
+              const displayName = getOneWordName(product.name);
+
               return (
                 <motion.div
                   key={product.id}
                   id={`product-item-${product.slug}`}
-                  whileHover={{ y: -2 }}
+                  whileHover={{ y: -3 }}
                   transition={{ duration: 0.2 }}
                   onClick={() => handleProductClick(product)}
                   className="group flex flex-col items-center cursor-pointer select-none"
                 >
-                  {/* Product Image: Clean presentation without cards */}
-                  <div className="w-full aspect-square bg-[#fafafa] flex items-center justify-center p-3 sm:p-4 md:p-6 transition-colors group-hover:bg-[#f3f3f3] overflow-hidden">
+                  {/* Seamless Canvas Image: No background box to let transparent product cuts float directly on page */}
+                  <div className="w-full aspect-square bg-transparent flex items-center justify-center p-2 sm:p-4 overflow-hidden relative">
                     <img
                       src={product.cardImage}
-                      alt={product.name}
+                      alt={displayName}
                       loading="lazy"
-                      className="w-full h-full object-contain transition-transform duration-500 ease-out group-hover:scale-105"
+                      className="w-full h-full object-contain transition-all duration-500 ease-out group-hover:scale-105"
                     />
                   </div>
 
-                  {/* Stylish Name Formatting - No colorway indicator text */}
+                  {/* One-Word Product Name Display */}
                   <div className="mt-2.5 sm:mt-3 px-1 text-center w-full">
-                    <h2 className="text-[10px] sm:text-[11px] font-medium tracking-[0.2em] uppercase font-serif text-neutral-800 group-hover:text-black transition-colors line-clamp-2 leading-relaxed">
-                      {product.name}
+                    <h2 className="text-[10px] sm:text-[11px] font-medium tracking-[0.22em] uppercase font-serif text-neutral-800 group-hover:text-black transition-colors truncate leading-relaxed">
+                      {displayName}
                     </h2>
                   </div>
                 </motion.div>

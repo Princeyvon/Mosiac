@@ -16,6 +16,7 @@ export const StickyHeader: React.FC = () => {
     gridDensity,
     toggleGridDensity,
     storefrontFilters,
+    showStorefrontFilters,
     activeFilter,
     setActiveFilter,
   } = useStore();
@@ -30,9 +31,9 @@ export const StickyHeader: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-black/[0.04] transition-all">
-      <div className="max-w-[1920px] mx-auto px-4 sm:px-8 h-13 sm:h-14 flex items-center justify-between gap-3">
-        {/* Top Left: Bold Black View Switcher (or Context-Aware Single Back button) */}
-        <div className="flex items-center min-w-[70px] sm:min-w-[100px]">
+      <div className="max-w-[1920px] mx-auto px-3 sm:px-8 h-13 sm:h-14 flex items-center justify-between gap-2 sm:gap-3">
+        {/* Top Left: View Switcher (or Context-Aware Single Back button) - visible on all screens */}
+        <div className="flex items-center min-w-fit sm:min-w-[100px]">
           {currentView === 'store' ? (
             <button
               id="grid-density-toggle-btn"
@@ -58,36 +59,38 @@ export const StickyHeader: React.FC = () => {
           )}
         </div>
 
-        {/* Center: Dynamic Storefront Filters */}
-        <div className="flex-1 flex items-center justify-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar py-1">
-          {storefrontFilters.map((f) => {
-            const isActive = activeFilter === f.slug;
-            return (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => {
-                  setActiveFilter(f.slug);
-                  if (currentView !== 'store') navigateToStore();
-                }}
-                className={`px-2.5 sm:px-3.5 py-1 text-[10px] sm:text-[11px] tracking-[0.18em] uppercase transition-all whitespace-nowrap cursor-pointer rounded-sm ${
-                  isActive
-                    ? 'bg-black text-white font-semibold'
-                    : 'text-neutral-500 hover:text-black hover:bg-neutral-100'
-                }`}
-              >
-                {f.label}
-              </button>
-            );
-          })}
-        </div>
+        {/* Center: Dynamic Storefront Filters - Hidden on mobile screen & controllable via Studio Dashboard */}
+        {showStorefrontFilters && (
+          <div className="hidden md:flex flex-1 items-center justify-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar py-1">
+            {storefrontFilters.map((f) => {
+              const isActive = activeFilter === f.slug;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveFilter(f.slug);
+                    if (currentView !== 'store') navigateToStore();
+                  }}
+                  className={`px-2.5 sm:px-3.5 py-1 text-[10px] sm:text-[11px] tracking-[0.18em] uppercase transition-all whitespace-nowrap cursor-pointer rounded-sm ${
+                    isActive
+                      ? 'bg-black text-white font-semibold'
+                      : 'text-neutral-500 hover:text-black hover:bg-neutral-100'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-        {/* Top Right: Currency Switcher, Cart, Mosiac Brand */}
-        <div className="flex items-center gap-3 sm:gap-5 min-w-[70px] sm:min-w-[100px] justify-end">
+        {/* Top Right: Currency Switcher & Cart on Mobile; Mosiac Brand only on Tablet/Desktop */}
+        <div className="flex items-center gap-2.5 sm:gap-5 min-w-fit sm:min-w-[100px] justify-end">
           {/* Currency Switcher */}
           <CurrencySelector />
 
-          {/* Redesigned Cart Button */}
+          {/* Cart Button */}
           <motion.button
             id="header-cart-btn"
             type="button"
@@ -100,12 +103,12 @@ export const StickyHeader: React.FC = () => {
             <span className="text-xs font-mono font-medium">{cartCount}</span>
           </motion.button>
 
-          {/* Mosiac brand text in top right */}
+          {/* Mosiac brand text - Hidden on mobile screens as requested */}
           <button
             id="brand-logo-btn"
             type="button"
             onClick={navigateToStore}
-            className="text-xs sm:text-[13px] font-bold tracking-[0.32em] uppercase hover:opacity-60 transition-opacity focus:outline-none cursor-pointer text-neutral-900 ml-1"
+            className="hidden sm:block text-xs sm:text-[13px] font-bold tracking-[0.32em] uppercase hover:opacity-60 transition-opacity focus:outline-none cursor-pointer text-neutral-900 ml-1"
           >
             Mosiac
           </button>

@@ -22,7 +22,7 @@ export const CURRENCIES: Currency[] = [
 export const INITIAL_PRODUCTS: Product[] = [
   {
     id: 'prod-rug-01',
-    name: 'UZU CIRCULAR RUG — SLATE & BRONZE',
+    name: 'UZU',
     slug: 'uzu-circular-rug-slate-bronze',
     collection: 'Bespoke Rugs',
     shape: 'Circular',
@@ -61,12 +61,12 @@ export const INITIAL_PRODUCTS: Product[] = [
     newArrival: true,
     visible: true,
     starred: true,
-    seoTitle: 'Uzu Circular Rug in Slate & Bronze — FORMA Studio',
+    seoTitle: 'Uzu Circular Rug — Mosiac Atelier',
     seoDescription: 'Architectural circular hand-tufted wool rug featuring a hand-carved Zen brush circle.'
   },
   {
     id: 'prod-rug-02',
-    name: 'UZU CIRCULAR RUG — IVORY & COGNAC',
+    name: 'ENSO',
     slug: 'uzu-circular-rug-ivory-cognac',
     collection: 'Bespoke Rugs',
     shape: 'Circular',
@@ -74,7 +74,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     leadTime: 'Ships within 3 to 5 business days',
     material: '100% Hand-Tufted New Zealand Wool, Botanic Luster Silk Inlay',
     cardSummary: 'Warm ivory woven wool ground punctuated by a masterfully sculpted Enso brush stroke in rich cognac bronze.',
-    fullDescription: 'A warm and luminous counterpart to the Slate edition, the Uzu in Ivory & Cognac features natural undyed virgin fleece accented by an expressive cognac earth-tone stroke. The variable pile heights create an authentic painterly dimension under directional sunlight.',
+    fullDescription: 'A warm and luminous counterpart to the Slate edition, the Enso features natural undyed virgin fleece accented by an expressive cognac earth-tone stroke. The variable pile heights create an authentic painterly dimension under directional sunlight.',
     careInstructions: 'Professional cleaning recommended. Blot spills immediately with a clean undyed towel.',
     tags: ['Hand-Tufted', 'Undyed Wool', 'Circular Rug', 'Zen Aesthetic'],
     colours: [
@@ -105,12 +105,12 @@ export const INITIAL_PRODUCTS: Product[] = [
     newArrival: true,
     visible: true,
     starred: true,
-    seoTitle: 'Uzu Circular Rug in Ivory & Cognac — FORMA Studio',
+    seoTitle: 'Enso Circular Rug — Mosiac Atelier',
     seoDescription: 'Warm ivory hand-tufted rug with cognac Enso brushwork.'
   },
   {
     id: 'prod-rug-03',
-    name: 'MEDUSA POP ART CIRCULAR RUG',
+    name: 'MEDUSA',
     slug: 'medusa-pop-art-circular-rug',
     collection: 'Art Editions',
     shape: 'Circular',
@@ -154,7 +154,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-rug-04',
-    name: 'STRATA WAVE RUG — ESPRESSO & SAND',
+    name: 'STRATA',
     slug: 'strata-wave-rug-espresso-sand',
     collection: 'Bespoke Rugs',
     shape: 'Freeform / Sculptural',
@@ -192,12 +192,12 @@ export const INITIAL_PRODUCTS: Product[] = [
     newArrival: true,
     visible: true,
     starred: false,
-    seoTitle: 'Strata Wave Rug in Espresso & Sand — FORMA Studio',
+    seoTitle: 'Strata Wave Rug — Mosiac Atelier',
     seoDescription: 'Sculptural freeform layered wave rug in espresso wool and sand flatweave.'
   },
   {
     id: 'prod-rug-05',
-    name: 'DUNE PLEAT RUG — CAMEL & ROSE',
+    name: 'DUNE',
     slug: 'dune-pleat-rug-camel-rose',
     collection: 'Bespoke Rugs',
     shape: 'Architectural / Stepped',
@@ -236,12 +236,12 @@ export const INITIAL_PRODUCTS: Product[] = [
     newArrival: true,
     visible: true,
     starred: false,
-    seoTitle: 'Dune Pleat Rug in Camel & Rose — FORMA Studio',
+    seoTitle: 'Dune Pleat Rug — Mosiac Atelier',
     seoDescription: 'Stepped architectural wool rug with corrugated linear texture.'
   },
   {
     id: 'prod-rug-06',
-    name: 'VORTEX SWIRL RUG — AZURE & COBALT',
+    name: 'VORTEX',
     slug: 'vortex-swirl-rug-azure-cobalt',
     collection: 'Art Editions',
     shape: 'Circular',
@@ -286,7 +286,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-rug-07',
-    name: 'STRATA WAVE RUG — CRIMSON & CORAL',
+    name: 'SIERRA',
     slug: 'strata-wave-rug-crimson-coral',
     collection: 'Bespoke Rugs',
     shape: 'Freeform / Sculptural',
@@ -324,12 +324,12 @@ export const INITIAL_PRODUCTS: Product[] = [
     newArrival: true,
     visible: true,
     starred: false,
-    seoTitle: 'Strata Wave Rug in Crimson & Coral — FORMA Studio',
+    seoTitle: 'Sierra Wave Rug — Mosiac Atelier',
     seoDescription: 'Sculptural freeform layered wave rug in wine crimson and terracotta.'
   },
   {
     id: 'prod-rug-08',
-    name: 'RIBBON COIL RUG — EMERALD GREEN',
+    name: 'RIBBON',
     slug: 'ribbon-coil-rug-emerald-green',
     collection: 'Bespoke Rugs',
     shape: 'Oblong / Serpentine',
@@ -368,12 +368,12 @@ export const INITIAL_PRODUCTS: Product[] = [
     newArrival: true,
     visible: true,
     starred: true,
-    seoTitle: 'Ribbon Coil Rug in Emerald Green — FORMA Studio',
+    seoTitle: 'Ribbon Coil Rug — Mosiac Atelier',
     seoDescription: 'Undulating serpentine optical ribbon rug in forest emerald wool.'
   },
   {
     id: 'prod-rug-09',
-    name: 'RIBBON COIL RUG — CARAMEL OCHRE',
+    name: 'OCHRE',
     slug: 'ribbon-coil-rug-caramel-ochre',
     collection: 'Bespoke Rugs',
     shape: 'Oblong / Serpentine',
@@ -412,12 +412,12 @@ export const INITIAL_PRODUCTS: Product[] = [
     newArrival: true,
     visible: true,
     starred: false,
-    seoTitle: 'Ribbon Coil Rug in Caramel Ochre — FORMA Studio',
+    seoTitle: 'Ochre Coil Rug — Mosiac Atelier',
     seoDescription: 'Undulating serpentine optical ribbon rug in caramel ochre wool.'
   },
   {
     id: 'prod-01',
-    name: 'MONOLITH TRAVERTINE CONSOLE',
+    name: 'MONOLITH',
     slug: 'monolith-travertine-console',
     collection: 'Furniture',
     shape: 'Monolithic',
@@ -459,12 +459,12 @@ export const INITIAL_PRODUCTS: Product[] = [
     newArrival: true,
     visible: true,
     starred: true,
-    seoTitle: 'Monolith Travertine Console — FORMA Studio',
-    seoDescription: 'Handcrafted Roman travertine architectural console by FORMA Studio.'
+    seoTitle: 'Monolith Travertine Console — Mosiac Atelier',
+    seoDescription: 'Handcrafted Roman travertine architectural console by Mosiac Atelier.'
   },
   {
     id: 'prod-02',
-    name: 'TORUS STONEWARE VESSEL',
+    name: 'TORUS',
     slug: 'torus-stoneware-vessel',
     collection: 'Ceramics',
     shape: 'Radial',
@@ -504,12 +504,12 @@ export const INITIAL_PRODUCTS: Product[] = [
     newArrival: false,
     visible: true,
     starred: true,
-    seoTitle: 'Torus Stoneware Vessel — FORMA Studio',
+    seoTitle: 'Torus Stoneware Vessel — Mosiac Atelier',
     seoDescription: 'Wheel thrown sculptural stoneware ceramic vessel in chalk white.'
   },
   {
     id: 'prod-03',
-    name: 'STRATA CAST BRONZE CHAIR',
+    name: 'BRONZE',
     slug: 'strata-cast-bronze-chair',
     collection: 'Furniture',
     shape: 'Angular',
@@ -548,12 +548,12 @@ export const INITIAL_PRODUCTS: Product[] = [
     newArrival: true,
     visible: true,
     starred: false,
-    seoTitle: 'Strata Cast Bronze Chair — FORMA Studio',
+    seoTitle: 'Bronze Chair — Mosiac Atelier',
     seoDescription: 'Sand-cast solid bronze heirloom lounge chair.'
   },
   {
     id: 'prod-04',
-    name: 'MERIDIAN OPAL PENDANT',
+    name: 'MERIDIAN',
     slug: 'meridian-opal-pendant',
     collection: 'Lighting',
     shape: 'Geometric',
@@ -593,12 +593,12 @@ export const INITIAL_PRODUCTS: Product[] = [
     newArrival: true,
     visible: true,
     starred: false,
-    seoTitle: 'Meridian Opal Pendant — FORMA Studio',
+    seoTitle: 'Meridian Opal Pendant — Mosiac Atelier',
     seoDescription: 'Mouth-blown opal glass luminaire with brushed nickel fittings.'
   },
   {
     id: 'prod-05',
-    name: 'OBELISK TERRACOTTA URN',
+    name: 'OBELISK',
     slug: 'obelisk-terracotta-urn',
     collection: 'Ceramics',
     shape: 'Geometric',
@@ -637,12 +637,12 @@ export const INITIAL_PRODUCTS: Product[] = [
     newArrival: false,
     visible: true,
     starred: false,
-    seoTitle: 'Obelisk Terracotta Urn — FORMA Studio',
+    seoTitle: 'Obelisk Terracotta Urn — Mosiac Atelier',
     seoDescription: 'High-fire terracotta geometric urn.'
   },
   {
     id: 'prod-06',
-    name: 'ARCH LOW COFFEE TABLE',
+    name: 'ARCH',
     slug: 'arch-low-coffee-table',
     collection: 'Furniture',
     shape: 'Geometric',
@@ -683,12 +683,12 @@ export const INITIAL_PRODUCTS: Product[] = [
     newArrival: false,
     visible: true,
     starred: false,
-    seoTitle: 'Arch Low Coffee Table — FORMA Studio',
+    seoTitle: 'Arch Low Coffee Table — Mosiac Atelier',
     seoDescription: 'Solid French oak architectural low coffee table.'
   },
   {
     id: 'prod-07',
-    name: 'ECHO SCULPTURAL MIRROR',
+    name: 'ECHO',
     slug: 'echo-sculptural-mirror',
     collection: 'Sculptural Objects',
     shape: 'Organic',
@@ -728,12 +728,12 @@ export const INITIAL_PRODUCTS: Product[] = [
     newArrival: true,
     visible: true,
     starred: false,
-    seoTitle: 'Echo Sculptural Mirror — FORMA Studio',
+    seoTitle: 'Echo Sculptural Mirror — Mosiac Atelier',
     seoDescription: 'Hand-cast aluminum frame mirror with organic contours.'
   },
   {
     id: 'prod-08',
-    name: 'VERTEX TEXTURED WOOL RUG',
+    name: 'VERTEX',
     slug: 'vertex-textured-wool-rug',
     collection: 'Textiles',
     shape: 'Geometric',
