@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useStore, getOneWordName } from '../../context/StoreContext';
 import { ProductGallery } from './ProductGallery';
-import { ArrowLeft, Check, X, ChevronDown } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { SizingGuideModal } from './SizingGuideModal';
+import { ArrowLeft, Check, Ruler } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface ProductDetailProps {
   slug: string;
@@ -25,7 +26,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ slug }) => {
   const [selectedSizeId, setSelectedSizeId] = useState<string>(defaultSizeId);
 
   const [addedAnimation, setAddedAnimation] = useState<boolean>(false);
-  const [showSizeModal, setShowSizeModal] = useState<boolean>(false);
+  const [showSizingGuide, setShowSizingGuide] = useState<boolean>(false);
 
   const selectedSize = product.sizes?.find(s => s.id === selectedSizeId) || product.sizes?.[0];
   const activePrice = selectedSize ? selectedSize.price : product.fromPrice;
@@ -87,18 +88,52 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ slug }) => {
             {formatPrice(activePrice)}
           </div>
 
-          {/* Sizing: Simple, architectural button opening dismissable popup (no excessive rounding) */}
+          {/* Sizing: S, M, L, XL Selection & Sizing Guide Button */}
           {product.sizes && product.sizes.length > 0 && (
-            <div className="pt-1">
-              <button
-                id="sizing-modal-trigger-btn"
-                type="button"
-                onClick={() => setShowSizeModal(true)}
-                className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-sm border border-neutral-300 hover:border-black text-[11px] uppercase tracking-[0.18em] text-neutral-800 hover:text-black bg-white transition-colors cursor-pointer"
-              >
-                <span>Size: {selectedSize?.label} ({selectedSize?.width} × {selectedSize?.depth} cm)</span>
-                <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />
-              </button>
+            <div className="w-full flex flex-col items-center space-y-2.5 pt-1">
+              <div className="flex items-center justify-between w-full max-w-xs px-1 text-[10px] uppercase font-mono tracking-widest text-neutral-400">
+                <span>Select Size</span>
+                <button
+                  id="open-sizing-guide-btn"
+                  type="button"
+                  onClick={() => setShowSizingGuide(true)}
+                  className="inline-flex items-center gap-1 text-neutral-600 hover:text-black transition-colors cursor-pointer border-b border-neutral-300 hover:border-black pb-0.5"
+                >
+                  <Ruler className="w-3 h-3 text-neutral-500" />
+                  <span>Sizing Guide</span>
+                </button>
+              </div>
+
+              {/* S, M, L, XL Size Chips */}
+              <div className="flex items-center justify-center gap-2 w-full">
+                {product.sizes.map((size) => {
+                  const isSelected = selectedSizeId === size.id;
+                  return (
+                    <button
+                      key={size.id}
+                      id={`size-btn-${size.label.toLowerCase()}`}
+                      type="button"
+                      onClick={() => setSelectedSizeId(size.id)}
+                      className={`min-w-[50px] h-10 px-3.5 flex flex-col items-center justify-center rounded-sm transition-all cursor-pointer border ${
+                        isSelected
+                          ? 'bg-black text-white border-black shadow-xs font-semibold'
+                          : 'bg-white text-neutral-800 border-neutral-300 hover:border-black hover:bg-neutral-50'
+                      }`}
+                    >
+                      <span className="text-xs tracking-wider uppercase font-mono font-medium">{size.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Selected Size Dimensions readout */}
+              {selectedSize && (
+                <div className="text-[11px] text-neutral-500 font-mono tracking-wide pt-0.5 text-center">
+                  <span>{selectedSize.width} × {selectedSize.depth} cm</span>
+                  <span className="text-neutral-300 mx-1.5">·</span>
+                  <span>approx. {((selectedSize.width * 0.0328084)).toFixed(1)}' × {((selectedSize.depth * 0.0328084)).toFixed(1)}' ft</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -131,80 +166,19 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ slug }) => {
           </div>
 
           {/* Material & Atelier note */}
-          <p className="pt-2 text-[11px] text-neutral-400 font-light max-w-sm tracking-wide leading-relaxed">
+          <p className="pt-2 text-[11px] text-neutral-400 font-light max-w-sm tracking-wide leading-relaxed text-center">
             {product.material} · {product.leadTime}
           </p>
         </div>
       </div>
 
-      {/* Easily Dismissable Sizing Popup Modal (Clean architectural modal with rounded-sm) */}
-      <AnimatePresence>
-        {showSizeModal && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs"
-            onClick={() => setShowSizeModal(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 6 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 6 }}
-              transition={{ duration: 0.15 }}
-              onClick={e => e.stopPropagation()}
-              className="bg-white border border-neutral-200 rounded-sm shadow-xl max-w-sm w-full p-6 text-left relative"
-            >
-              {/* Close Button */}
-              <button
-                type="button"
-                onClick={() => setShowSizeModal(false)}
-                className="absolute top-4 right-4 p-1 text-neutral-400 hover:text-black cursor-pointer transition-colors"
-                aria-label="Close size options"
-              >
-                <X className="w-4 h-4" />
-              </button>
-
-              <div className="text-xs uppercase tracking-[0.22em] font-medium text-neutral-900 mb-1">
-                Select Dimensions
-              </div>
-              <p className="text-[11px] text-neutral-400 font-light mb-4">
-                Atelier edition scale & proportions
-              </p>
-
-              <div className="space-y-2">
-                {product.sizes?.map(size => {
-                  const isSelected = selectedSizeId === size.id;
-                  return (
-                    <button
-                      key={size.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedSizeId(size.id);
-                        setShowSizeModal(false);
-                      }}
-                      className={`w-full flex items-center justify-between p-3 rounded-sm border text-left transition-all cursor-pointer ${
-                        isSelected
-                          ? 'border-black bg-neutral-50 font-medium'
-                          : 'border-neutral-200 hover:border-neutral-400 bg-white'
-                      }`}
-                    >
-                      <div>
-                        <div className="text-[11px] uppercase tracking-wider text-neutral-900 font-medium">
-                          {size.label}
-                        </div>
-                        <div className="text-[10px] text-neutral-400 font-mono mt-0.5">
-                          {size.width} × {size.depth} cm
-                        </div>
-                      </div>
-                      <div className="text-[11px] font-mono font-medium text-neutral-900">
-                        {formatPrice(size.price)}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* Sizing Guide Pop-up with designed tables */}
+      <SizingGuideModal
+        isOpen={showSizingGuide}
+        onClose={() => setShowSizingGuide(false)}
+        productName={product.name}
+        productShape={product.shape}
+      />
     </div>
   );
 };

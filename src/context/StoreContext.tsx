@@ -288,7 +288,21 @@ const INITIAL_AUDIT_LOGS: AuditLog[] = [
   { id: 'log-4', action: 'Updated pricing table', target: 'Monolith Travertine Console', user: 'Admin (Studio)', timestamp: '4 days ago' }
 ];
 
+const normalizeSizeLabel = (label: string, index: number, total: number): string => {
+  const upper = (label || '').trim().toUpperCase();
+  if (['S', 'M', 'L', 'XL'].includes(upper)) return upper;
+  if (upper.includes('COMPACT') || upper.includes('SMALL') || upper.includes('STUDIO')) return 'S';
+  if (upper.includes('LIVING') || upper.includes('MEDIUM') || upper.includes('GALLERY') || upper.includes('STANDARD')) return 'M';
+  if (upper.includes('SALON') || upper.includes('LOUNGE') || upper.includes('LARGE') || upper.includes('GRAND')) return 'L';
+  if (upper.includes('ATRIUM') || upper.includes('MONUMENTAL') || upper.includes('EXTRA') || upper.includes('XL')) return 'XL';
+  const sequence = ['S', 'M', 'L', 'XL'];
+  return sequence[index] || 'M';
+};
+
 const sanitizeProduct = (p: any): Product => {
+  const rawSizes = Array.isArray(p.sizes) && p.sizes.length > 0 ? p.sizes : null;
+  const basePrice = typeof p.fromPrice === 'number' ? p.fromPrice : 1850;
+
   return {
     ...p,
     id: p.id || 'prod-' + Math.random().toString(36).substring(2, 9),
@@ -307,8 +321,18 @@ const sanitizeProduct = (p: any): Product => {
     cardImage: p.cardImage || '/images/uzu-slate-bronze.jpg',
     hoverImage: p.hoverImage || undefined,
     galleryImages: Array.isArray(p.galleryImages) && p.galleryImages.length > 0 ? p.galleryImages : [p.cardImage || '/images/uzu-slate-bronze.jpg'],
-    sizes: Array.isArray(p.sizes) && p.sizes.length > 0 ? p.sizes : [{ id: 's1', label: 'Standard', width: 200, depth: 150, price: p.fromPrice || 1200, weight: 15 }],
-    fromPrice: typeof p.fromPrice === 'number' ? p.fromPrice : 1200,
+    sizes: rawSizes
+      ? rawSizes.map((s: any, idx: number, arr: any[]) => ({
+          ...s,
+          label: normalizeSizeLabel(s.label, idx, arr.length)
+        }))
+      : [
+          { id: 's1', label: 'S', width: 150, depth: 150, price: basePrice, weight: 19 },
+          { id: 's2', label: 'M', width: 200, depth: 200, price: Math.round(basePrice * 1.45), weight: 34 },
+          { id: 's3', label: 'L', width: 250, depth: 250, price: Math.round(basePrice * 2.05), weight: 53 },
+          { id: 's4', label: 'XL', width: 300, depth: 300, price: Math.round(basePrice * 2.75), weight: 77 }
+        ],
+    fromPrice: basePrice,
     sku: p.sku || 'FORMA-001',
     stockOnHand: typeof p.stockOnHand === 'number' ? p.stockOnHand : 4,
     lowStockAlertAt: typeof p.lowStockAlertAt === 'number' ? p.lowStockAlertAt : 2,

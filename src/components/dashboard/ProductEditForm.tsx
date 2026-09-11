@@ -116,13 +116,43 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
   const handleAddSize = () => {
     const newSize: ProductSize = {
       id: 's-' + Date.now().toString().slice(-4),
-      label: 'Custom Size',
-      width: 100,
-      depth: 50,
-      price: form.fromPrice || 1000,
-      weight: Math.round(100 * 50 * 0.0085) // Weight fills in automatically from dimensions: area * 0.0085
+      label: 'M',
+      width: 200,
+      depth: 200,
+      price: form.fromPrice || 1850,
+      weight: Math.round(200 * 200 * 0.0085) // Weight fills in automatically from dimensions: area * 0.0085
     };
     setForm(prev => ({ ...prev, sizes: [...prev.sizes, newSize] }));
+  };
+
+  const handleAddSpecificSize = (label: 'S' | 'M' | 'L' | 'XL') => {
+    const defaults = {
+      S: { width: 150, depth: 150, price: form.fromPrice || 1850 },
+      M: { width: 200, depth: 200, price: Math.round((form.fromPrice || 1850) * 1.45) },
+      L: { width: 250, depth: 250, price: Math.round((form.fromPrice || 1850) * 2.05) },
+      XL: { width: 300, depth: 300, price: Math.round((form.fromPrice || 1850) * 2.75) },
+    }[label];
+
+    const newSize: ProductSize = {
+      id: 's-' + label.toLowerCase() + '-' + Date.now().toString().slice(-4),
+      label,
+      width: defaults.width,
+      depth: defaults.depth,
+      price: defaults.price,
+      weight: Math.max(1, Math.round(defaults.width * defaults.depth * 0.0085))
+    };
+    setForm(prev => ({ ...prev, sizes: [...prev.sizes, newSize] }));
+  };
+
+  const handleApplyStandardSizes = () => {
+    const base = form.fromPrice || 1850;
+    const stdSizes: ProductSize[] = [
+      { id: 's-s-' + Date.now(), label: 'S', width: 150, depth: 150, price: base, weight: 19 },
+      { id: 's-m-' + Date.now(), label: 'M', width: 200, depth: 200, price: Math.round(base * 1.45), weight: 34 },
+      { id: 's-l-' + Date.now(), label: 'L', width: 250, depth: 250, price: Math.round(base * 2.05), weight: 53 },
+      { id: 's-xl-' + Date.now(), label: 'XL', width: 300, depth: 300, price: Math.round(base * 2.75), weight: 77 },
+    ];
+    setForm(prev => ({ ...prev, sizes: stdSizes }));
   };
 
   const handleUpdateSize = (index: number, field: keyof ProductSize, value: any) => {
@@ -643,25 +673,15 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
             >
               <div>
                 <h2 className="text-[12px] uppercase tracking-wider font-bold text-neutral-900 group-hover:text-black">
-                  Sizes, Pricing and Weight
+                  Available Sizing (S, M, L, XL) & Weight
                 </h2>
                 <p className="text-[10px] text-neutral-400 mt-0.5 flex items-center gap-1">
                   <HelpCircle className="w-3 h-3" />
-                  <span>Weight fills in automatically: width × depth × 0.0085 kg</span>
+                  <span>Managed by Studio Admin · Automatically reflected on Storefront S, M, L, XL selector</span>
                 </p>
               </div>
 
               <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={e => {
-                    e.stopPropagation();
-                    handleAddSize();
-                  }}
-                  className="text-[11px] font-semibold text-black hover:underline uppercase tracking-wider cursor-pointer"
-                >
-                  + Add size
-                </button>
                 <div className="text-neutral-400 group-hover:text-black">
                   {sectionsOpen.sizing ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </div>
@@ -669,40 +689,72 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
             </div>
 
             {sectionsOpen.sizing && (
-              <div className="overflow-x-auto animate-in fade-in duration-150">
-                <table className="w-full text-[11px] text-left">
-                  <thead>
-                    <tr className="border-b border-neutral-200 text-neutral-400 font-mono text-[9px] uppercase tracking-wider">
-                      <th className="pb-2">Size Label</th>
-                      <th className="pb-2">Width (cm)</th>
-                      <th className="pb-2">Depth (cm)</th>
-                      <th className="pb-2">Price ($)</th>
-                      <th className="pb-2">Weight (kg)</th>
-                      <th className="pb-2 text-right"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-100 font-mono">
-                    {form.sizes.map((size, idx) => (
-                      <tr key={size.id || idx}>
-                        <td className="py-2 pr-2">
-                          <input
-                            type="text"
-                            value={size.label}
-                            onChange={e => handleUpdateSize(idx, 'label', e.target.value)}
-                            className="w-full border border-neutral-200 rounded-sm px-2 py-1 text-[11px] font-sans focus:outline-black"
-                          />
-                        </td>
-                        <td className="py-2 pr-2 w-20">
-                          <input
-                            type="number"
-                            value={size.width}
-                            onChange={e => handleUpdateSize(idx, 'width', Number(e.target.value))}
-                            className="w-full border border-neutral-200 rounded-sm px-2 py-1 text-[11px] focus:outline-black"
-                          />
-                        </td>
-                        <td className="py-2 pr-2 w-20">
-                          <input
-                            type="number"
+              <div className="space-y-3 animate-in fade-in duration-150">
+                {/* Admin Quick Sizing Presets Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-neutral-50 border border-neutral-200 rounded-sm">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-500 font-semibold">Quick Add:</span>
+                    {(['S', 'M', 'L', 'XL'] as const).map(sz => (
+                      <button
+                        key={sz}
+                        type="button"
+                        onClick={() => handleAddSpecificSize(sz)}
+                        className="px-2 py-0.5 text-[10px] font-mono font-bold bg-white hover:bg-black hover:text-white border border-neutral-300 rounded-sm transition-colors cursor-pointer"
+                        title={`Add ${sz} standard size`}
+                      >
+                        +{sz}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleApplyStandardSizes}
+                    className="text-[10px] font-mono uppercase tracking-wider text-neutral-700 hover:text-black hover:underline cursor-pointer font-medium"
+                  >
+                    Reset to Standard (S, M, L, XL)
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[11px] text-left">
+                    <thead>
+                      <tr className="border-b border-neutral-200 text-neutral-400 font-mono text-[9px] uppercase tracking-wider">
+                        <th className="pb-2">Size (S, M, L, XL)</th>
+                        <th className="pb-2">Width (cm)</th>
+                        <th className="pb-2">Depth (cm)</th>
+                        <th className="pb-2">Price ($)</th>
+                        <th className="pb-2">Weight (kg)</th>
+                        <th className="pb-2 text-right"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-100 font-mono">
+                      {form.sizes.map((size, idx) => (
+                        <tr key={size.id || idx}>
+                          <td className="py-2 pr-2 w-28">
+                            <select
+                              value={size.label}
+                              onChange={e => handleUpdateSize(idx, 'label', e.target.value)}
+                              className="w-full border border-neutral-200 rounded-sm px-2 py-1 text-[11px] font-mono font-bold focus:outline-black bg-white"
+                            >
+                              <option value="S">S (Small)</option>
+                              <option value="M">M (Medium)</option>
+                              <option value="L">L (Large)</option>
+                              <option value="XL">XL (Extra Large)</option>
+                              <option value="Custom">Custom</option>
+                            </select>
+                          </td>
+                          <td className="py-2 pr-2 w-20">
+                            <input
+                              type="number"
+                              value={size.width}
+                              onChange={e => handleUpdateSize(idx, 'width', Number(e.target.value))}
+                              className="w-full border border-neutral-200 rounded-sm px-2 py-1 text-[11px] focus:outline-black"
+                            />
+                          </td>
+                          <td className="py-2 pr-2 w-20">
+                            <input
+                              type="number"
                             value={size.depth}
                             onChange={e => handleUpdateSize(idx, 'depth', Number(e.target.value))}
                             className="w-full border border-neutral-200 rounded-sm px-2 py-1 text-[11px] focus:outline-black"
