@@ -317,7 +317,22 @@ const sanitizeProduct = (p: any): Product => {
     fullDescription: p.fullDescription || '',
     careInstructions: p.careInstructions || '',
     tags: Array.isArray(p.tags) ? p.tags : [],
-    colours: Array.isArray(p.colours) ? p.colours : [{ id: 'c-default', name: 'Studio Finish', hex: '#222222' }],
+    colours: Array.isArray(p.colours) && p.colours.length > 0
+      ? p.colours.map((c: any, idx: number) => {
+          const defaultImg =
+            c.image ||
+            (idx === 0 ? p.cardImage : idx === 1 ? (p.hoverImage || p.galleryImages?.[1] || p.cardImage) : (p.galleryImages?.[idx] || p.cardImage)) ||
+            p.cardImage ||
+            '/images/uzu-slate-bronze.jpg';
+          return {
+            id: c.id || `c-${idx}-${Date.now()}`,
+            name: c.name || `Variant ${idx + 1}`,
+            hex: c.hex || '#111111',
+            image: defaultImg,
+            galleryImages: Array.isArray(c.galleryImages) ? c.galleryImages : undefined,
+          };
+        })
+      : [{ id: 'c-default', name: 'Studio Finish', hex: '#222222', image: p.cardImage || '/images/uzu-slate-bronze.jpg' }],
     cardImage: p.cardImage || '/images/uzu-slate-bronze.jpg',
     hoverImage: p.hoverImage || undefined,
     galleryImages: Array.isArray(p.galleryImages) && p.galleryImages.length > 0 ? p.galleryImages : [p.cardImage || '/images/uzu-slate-bronze.jpg'],

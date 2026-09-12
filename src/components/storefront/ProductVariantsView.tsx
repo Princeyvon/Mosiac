@@ -28,7 +28,8 @@ export const ProductVariantsView: React.FC<ProductVariantsViewProps> = ({ slug }
   const baseName = getOneWordName(product.name);
 
   // Get matching image for each color variant
-  const getVariantImage = (index: number) => {
+  const getVariantImage = (color: typeof product.colours[0], index: number) => {
+    if (color.image) return color.image;
     if (index === 0 && product.cardImage) return product.cardImage;
     if (index === 1 && product.hoverImage) return product.hoverImage;
     if (product.galleryImages && product.galleryImages[index]) return product.galleryImages[index];
@@ -51,7 +52,7 @@ export const ProductVariantsView: React.FC<ProductVariantsViewProps> = ({ slug }
           }`}
         >
           {product.colours.map((color, idx) => {
-            const variantImg = getVariantImage(idx);
+            const variantImg = getVariantImage(color, idx);
             return (
               <motion.div
                 key={color.id || color.name}
@@ -70,11 +71,17 @@ export const ProductVariantsView: React.FC<ProductVariantsViewProps> = ({ slug }
                   />
                 </div>
 
-                {/* Variant Name: Name — Color */}
-                <div className="mt-3 text-center">
-                  <h3 className="text-[11px] sm:text-xs font-medium tracking-[0.2em] uppercase font-serif text-neutral-800 group-hover:text-black transition-colors">
-                    {baseName} — {color.name}
-                  </h3>
+                {/* Variant Name & Swatch: Name — Color */}
+                <div className="mt-3 text-center flex flex-col items-center gap-1.5">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full border border-black/15 shrink-0"
+                      style={{ backgroundColor: color.hex }}
+                    />
+                    <h3 className="text-[11px] sm:text-xs font-medium tracking-[0.2em] uppercase font-serif text-neutral-800 group-hover:text-black transition-colors">
+                      {baseName} — {color.name}
+                    </h3>
+                  </div>
                 </div>
               </motion.div>
             );

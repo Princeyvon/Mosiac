@@ -19,8 +19,19 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ slug }) => {
 
   const product = products.find(p => p.slug === slug) || products[0];
 
-  // Active color chosen from variants view (or first colorway)
-  const activeColorName = selectedColorVariant || product.colours?.[0]?.name || 'Standard Edition';
+  // Active color chosen from variants view or directly on PDP swatches
+  const [activeColorName, setActiveColorName] = useState<string>(
+    selectedColorVariant || product.colours?.[0]?.name || 'Standard Edition'
+  );
+
+  // Sync when selectedColorVariant updates via navigation
+  useEffect(() => {
+    if (selectedColorVariant) {
+      setActiveColorName(selectedColorVariant);
+    } else if (product.colours?.[0]?.name) {
+      setActiveColorName(product.colours[0].name);
+    }
+  }, [selectedColorVariant, product.colours]);
 
   const defaultSizeId = product.sizes?.[0]?.id || 's1';
   const [selectedSizeId, setSelectedSizeId] = useState<string>(defaultSizeId);
@@ -32,30 +43,40 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ slug }) => {
   const activePrice = selectedSize ? selectedSize.price : product.fromPrice;
   const isSoldOut = product.availability === 'Sold out';
 
+  const activeColor = product.colours?.find(
+    c => c.name.toLowerCase() === activeColorName.toLowerCase()
+  ) || product.colours?.[0];
+
   // Find images matching the active color if available
   const activeImages = React.useMemo(() => {
-    if (!product.galleryImages || product.galleryImages.length === 0) {
-      return [product.cardImage];
-    }
-    // If ivory/cognac or secondary color, lead with hoverImage
-    if (activeColorName.toLowerCase().includes('ivory') && product.hoverImage) {
-      return [product.hoverImage, ...product.galleryImages.filter(img => img !== product.hoverImage)];
-    }
-    return product.galleryImages;
-  }, [product, activeColorName]);
+    const baseGallery = (product.galleryImages && product.galleryImages.length > 0)
+      ? product.galleryImages
+      : [product.cardImage];
 
-  // Close sizing modal on Escape
+    if (activeColor?.image) {
+      // Lead with the linked variant image, followed by any color-specific gallery images, then remaining product gallery
+      const colorSpecificGallery = activeColor.galleryImages || [];
+      const remainingImages = baseGallery.filter(
+        img => img !== activeColor.image && !colorSpecificGallery.includes(img)
+      );
+      return [activeColor.image, ...colorSpecificGallery, ...remainingImages];
+    }
+
+    return baseGallery;
+  }, [product, activeColor]);
+
+  // Close sizing guide on Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setShowSizeModal(false);
+        setShowSizingGuide(false);
       }
     };
-    if (showSizeModal) {
+    if (showSizingGuide) {
       window.addEventListener('keydown', handleKeyDown);
     }
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showSizeModal]);
+  }, [showSizingGuide]);
 
   const handleAddToCart = () => {
     if (isSoldOut) return;
@@ -87,6 +108,44 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ slug }) => {
           <div className="text-base sm:text-lg font-mono font-medium text-neutral-900 tracking-tight">
             {formatPrice(activePrice)}
           </div>
+
+          {/* Colourway Swatches Selector */}
+          {product.colours && product.colours.length > 0 && (
+            <div className="w-full flex flex-col items-center space-y-2 pt-1">
+              <div className="flex items-center justify-between w-full max-w-xs px-1 text-[10px] uppercase font-mono tracking-widest text-neutral-400">
+                <span>Colourway</span>
+                <span className="text-neutral-800 font-medium">{activeColor?.name || activeColorName}</span>
+              </div>
+
+              <div className="flex items-center justify-center gap-2 flex-wrap max-w-sm">
+                {product.colours.map(color => {
+                  const isSelected = color.name.toLowerCase() === (activeColor?.name || activeColorName).toLowerCase();
+                  return (
+                    <button
+                      key={color.id || color.name}
+                      id={`pdp-swatch-${color.name.toLowerCase().replace(/\s+/g, '-')}`}
+                      type="button"
+                      onClick={() => setActiveColorName(color.name)}
+                      className={`group relative flex items-center gap-2 px-3 py-1.5 rounded-sm border transition-all cursor-pointer ${
+                        isSelected
+                          ? 'border-black bg-neutral-100 text-black shadow-xs font-semibold'
+                          : 'border-neutral-200 hover:border-black bg-white text-neutral-700 hover:bg-neutral-50'
+                      }`}
+                      title={color.name}
+                    >
+                      <span
+                        className="w-3.5 h-3.5 rounded-full border border-black/15 shrink-0 shadow-2xs transition-transform group-hover:scale-110"
+                        style={{ backgroundColor: color.hex }}
+                      />
+                      <span className="text-[11px] uppercase tracking-wider font-mono">
+                        {color.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Sizing: S, M, L, XL Selection & Sizing Guide Button */}
           {product.sizes && product.sizes.length > 0 && (

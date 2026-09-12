@@ -10,6 +10,11 @@ interface ProductGalleryProps {
 export const ProductGallery: React.FC<ProductGalleryProps> = ({ images, productName }) => {
   const [activeIndex, setActiveIndex] = useState(0);
 
+  // Sync to slide 0 when the lead image or images list changes (e.g. user selected a new color swatch)
+  React.useEffect(() => {
+    setActiveIndex(0);
+  }, [images?.[0]]);
+
   const safeImages = images && images.length > 0 ? images : [
     'https://images.unsplash.com/photo-1538688525198-9b88f6f53126?auto=format&fit=crop&w=1200&q=85'
   ];

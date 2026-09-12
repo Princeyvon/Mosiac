@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
 import { Product, ProductSize, ProductColor } from '../../types';
 import { ImageUploadField } from './ImageUploadField';
+import { removeImageBackgroundInBrowser } from '../../utils/imageProcessing';
 import {
   Check,
   X,
@@ -13,7 +14,14 @@ import {
   ChevronDown,
   ChevronUp,
   Upload,
-  Clipboard
+  Clipboard,
+  Link2,
+  Palette,
+  ExternalLink,
+  Layers,
+  Scissors,
+  Wand2,
+  Loader2
 } from 'lucide-react';
 
 interface ProductEditFormProps {
@@ -44,12 +52,21 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
   const [newTagInput, setNewTagInput] = useState('');
   const [newColorName, setNewColorName] = useState('');
   const [newColorHex, setNewColorHex] = useState('#222222');
+  const [newColorImageUrl, setNewColorImageUrl] = useState('');
   const [newGalleryUrl, setNewGalleryUrl] = useState('');
   const [showAddGalleryInput, setShowAddGalleryInput] = useState(false);
+  const [activePickerColorId, setActivePickerColorId] = useState<string | null>(null);
+  const [pickerCustomUrl, setPickerCustomUrl] = useState('');
+
+  // All available product media gathered from card, hover, and gallery images
+  const allAvailableImages = Array.from(
+    new Set([form.cardImage, form.hoverImage, ...form.galleryImages].filter(Boolean) as string[])
+  );
 
   // Collapsible sections (default expanded as requested)
   const [sectionsOpen, setSectionsOpen] = useState({
     specs: true,
+    variants: true,
     media: true,
     sizing: true,
     inventory: true,
@@ -84,16 +101,61 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
     setForm(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tagToRemove) }));
   };
 
-  // Colours management
+  // Colours and Variant Image linking management
   const handleAddColor = () => {
     if (!newColorName.trim()) return;
     const newColor: ProductColor = {
       id: 'c-' + Date.now().toString().slice(-4),
       name: newColorName.trim(),
-      hex: newColorHex
+      hex: newColorHex,
+      image: newColorImageUrl.trim() || undefined
     };
     setForm(prev => ({ ...prev, colours: [...prev.colours, newColor] }));
     setNewColorName('');
+    setNewColorImageUrl('');
+    showToast(`Added variant: ${newColor.name}`);
+  };
+
+  const handleUpdateColor = (id: string, updates: Partial<ProductColor>) => {
+    setForm(prev => ({
+      ...prev,
+      colours: prev.colours.map(c => (c.id === id ? { ...c, ...updates } : c))
+    }));
+  };
+
+  const handleSetColorImage = (colorId: string, imageUrl: string) => {
+    setForm(prev => ({
+      ...prev,
+      colours: prev.colours.map(c => (c.id === colorId ? { ...c, image: imageUrl } : c))
+    }));
+    setActivePickerColorId(null);
+    showToast('Variant image linked successfully');
+  };
+
+  const handleRemoveColorImage = (colorId: string) => {
+    setForm(prev => ({
+      ...prev,
+      colours: prev.colours.map(c => (c.id === colorId ? { ...c, image: undefined } : c))
+    }));
+    showToast('Unlinked variant image');
+  };
+
+  const handleSetAsPrimaryCardImage = (imageUrl: string) => {
+    setForm(prev => ({ ...prev, cardImage: imageUrl }));
+    showToast('Set as primary storefront card image');
+  };
+
+  const handleAutoMapVariantsToImages = () => {
+    if (!form.colours || form.colours.length === 0) return;
+    setForm(prev => {
+      const available = [prev.cardImage, prev.hoverImage, ...prev.galleryImages].filter(Boolean) as string[];
+      const mapped = prev.colours.map((c, idx) => ({
+        ...c,
+        image: c.image || available[idx] || prev.cardImage
+      }));
+      return { ...prev, colours: mapped };
+    });
+    showToast('Auto-linked images across all variants');
   };
 
   const handleRemoveColor = (id: string) => {
@@ -101,11 +163,54 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
   };
 
   // Gallery management
-  const handleAddGalleryImage = (url: string) => {
+  const [isProcessingGalleryCutout, setIsProcessingGalleryCutout] = useState(false);
+  const [autoCutoutGalleryUploads, setAutoCutoutGalleryUploads] = useState(true);
+
+  const handleAddGalleryImage = async (url: string) => {
     if (!url.trim()) return;
-    setForm(prev => ({ ...prev, galleryImages: [...prev.galleryImages, url.trim()] }));
+    if (autoCutoutGalleryUploads) {
+      try {
+        setIsProcessingGalleryCutout(true);
+        const cutout = await removeImageBackgroundInBrowser(url.trim(), {
+          tolerance: 26,
+          cropToContent: true,
+          smoothEdges: true
+        });
+        setForm(prev => ({ ...prev, galleryImages: [...prev.galleryImages, cutout] }));
+        showToast('Angle uploaded with background removed');
+      } catch {
+        setForm(prev => ({ ...prev, galleryImages: [...prev.galleryImages, url.trim()] }));
+      } finally {
+        setIsProcessingGalleryCutout(false);
+      }
+    } else {
+      setForm(prev => ({ ...prev, galleryImages: [...prev.galleryImages, url.trim()] }));
+    }
     setNewGalleryUrl('');
     setShowAddGalleryInput(false);
+  };
+
+  const handleCutoutSingleGalleryImage = async (index: number) => {
+    const targetUrl = form.galleryImages[index];
+    if (!targetUrl) return;
+    try {
+      setIsProcessingGalleryCutout(true);
+      const cutout = await removeImageBackgroundInBrowser(targetUrl, {
+        tolerance: 26,
+        cropToContent: true,
+        smoothEdges: true
+      });
+      setForm(prev => {
+        const next = [...prev.galleryImages];
+        next[index] = cutout;
+        return { ...prev, galleryImages: next };
+      });
+      showToast(`Background removed for gallery angle #${index + 1}`);
+    } catch {
+      showToast('Could not process background removal for this angle');
+    } finally {
+      setIsProcessingGalleryCutout(false);
+    }
   };
 
   const handleRemoveGalleryImage = (index: number) => {
@@ -441,54 +546,180 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
                   </div>
                 </div>
 
-                {/* Colours Chip List of Hex-Swatch Pills */}
-                <div>
-                  <label className="block text-[10px] uppercase tracking-wider font-semibold text-neutral-700 mb-1.5">
-                    Colours & Finishes
-                  </label>
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {form.colours.map(c => (
-                      <span
-                        key={c.id}
-                        className="inline-flex items-center gap-2 border border-neutral-200 bg-white px-2.5 py-1 rounded-sm text-[10px] shadow-2xs"
-                      >
-                        <span
-                          className="w-3 h-3 rounded-full border border-black/10 shrink-0"
-                          style={{ backgroundColor: c.hex }}
+              </div>
+            )}
+          </div>
+
+          {/* Colourways, Swatches & Linked Variant Imagery (Dedicated Section) */}
+          <div className="bg-white p-6 border border-neutral-200 rounded-sm space-y-4">
+            <div
+              onClick={() => toggleSection('variants')}
+              className="flex items-center justify-between border-b border-neutral-100 pb-2 cursor-pointer select-none group"
+            >
+              <div className="flex items-center gap-2">
+                <Palette className="w-4 h-4 text-neutral-700" />
+                <h2 className="text-[12px] uppercase tracking-wider font-bold text-neutral-900 group-hover:text-black">
+                  Colourways & Linked Variant Imagery ({form.colours.length})
+                </h2>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAutoMapVariantsToImages();
+                  }}
+                  className="text-[9px] uppercase tracking-wider font-semibold px-2 py-1 bg-neutral-100 hover:bg-neutral-200 rounded-sm text-neutral-700 transition-colors cursor-pointer"
+                  title="Automatically match gallery photos to each variant"
+                >
+                  Auto-Map Images
+                </button>
+                <div className="text-neutral-400 group-hover:text-black">
+                  {sectionsOpen.variants ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </div>
+              </div>
+            </div>
+
+            {sectionsOpen.variants && (
+              <div className="space-y-4 animate-in fade-in duration-150">
+                <p className="text-[11px] text-neutral-500 leading-relaxed">
+                  Link distinct imagery and swatches to each edition. When visitors browse the <strong>Variants View</strong> or tap a swatch on the storefront <strong>PDP</strong>, the carousel and gallery immediately transition to display that edition&apos;s linked imagery.
+                </p>
+
+                {/* List of Configured Color Variants */}
+                <div className="space-y-2.5">
+                  {form.colours.map((c) => (
+                    <div
+                      key={c.id}
+                      className="p-3 bg-neutral-50/80 border border-neutral-200 rounded-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 group hover:border-neutral-300 transition-colors"
+                    >
+                      {/* Left: Swatch picker & Label & Hex */}
+                      <div className="flex items-center gap-2.5 min-w-[200px] flex-1">
+                        {/* Swatch & Live Hex input */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <input
+                            type="color"
+                            value={c.hex}
+                            onChange={e => handleUpdateColor(c.id, { hex: e.target.value })}
+                            className="w-7 h-7 p-0.5 border border-neutral-300 rounded-sm cursor-pointer"
+                            title="Change swatch colour"
+                          />
+                          <input
+                            type="text"
+                            value={c.hex}
+                            onChange={e => handleUpdateColor(c.id, { hex: e.target.value })}
+                            className="w-16 border border-neutral-300 rounded-sm px-1.5 py-1 text-[10px] font-mono text-neutral-600 focus:outline-black uppercase"
+                          />
+                        </div>
+
+                        {/* Variant Name input */}
+                        <input
+                          type="text"
+                          value={c.name}
+                          onChange={e => handleUpdateColor(c.id, { name: e.target.value })}
+                          className="flex-1 border border-neutral-300 rounded-sm px-2.5 py-1 text-xs font-medium text-neutral-900 focus:outline-black bg-white"
+                          placeholder="Edition name"
                         />
-                        <span className="font-medium text-neutral-800">{c.name}</span>
-                        <span className="font-mono text-[9px] text-neutral-400">{c.hex}</span>
+                      </div>
+
+                      {/* Right: Linked Image Preview & Quick Actions */}
+                      <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                        {c.image ? (
+                          <div className="flex items-center gap-2 bg-white border border-neutral-200 p-1 rounded-sm shadow-2xs">
+                            <div className="w-10 h-10 rounded-xs bg-neutral-100 overflow-hidden border border-neutral-200 shrink-0">
+                              <img src={c.image} alt={c.name} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="flex flex-col gap-0.5 pr-1">
+                              <span className="text-[9px] uppercase font-mono tracking-tight text-emerald-700 font-semibold flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                Linked Image
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setActivePickerColorId(c.id)}
+                                  className="text-[9px] text-neutral-600 hover:text-black underline cursor-pointer"
+                                >
+                                  Change
+                                </button>
+                                {c.image !== form.cardImage && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSetAsPrimaryCardImage(c.image!)}
+                                    className="text-[9px] text-neutral-500 hover:text-black cursor-pointer"
+                                    title="Make this variant's image the storefront card image"
+                                  >
+                                    Set as Card
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveColorImage(c.id)}
+                                  className="text-[9px] text-red-500 hover:text-red-700 cursor-pointer"
+                                >
+                                  Unlink
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setActivePickerColorId(c.id)}
+                            className="inline-flex items-center gap-1.5 border border-dashed border-neutral-300 hover:border-black bg-white px-2.5 py-1.5 rounded-sm text-[10px] text-neutral-600 hover:text-black transition-colors cursor-pointer"
+                          >
+                            <Link2 className="w-3.5 h-3.5 text-neutral-400" />
+                            <span>Link Variant Image</span>
+                          </button>
+                        )}
+
+                        {/* Delete variant */}
                         <button
                           type="button"
                           onClick={() => handleRemoveColor(c.id)}
-                          className="text-neutral-400 hover:text-black ml-0.5 cursor-pointer"
+                          className="p-1.5 text-neutral-400 hover:text-red-600 transition-colors cursor-pointer ml-1"
+                          title="Delete variant"
                         >
-                          <X className="w-3 h-3" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
-                      </span>
-                    ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add New Variant Form */}
+                <div className="p-3 bg-neutral-100/70 border border-neutral-200 rounded-sm space-y-2">
+                  <div className="text-[10px] uppercase tracking-wider font-semibold text-neutral-700">
+                    Add New Colourway Edition
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <input
                       type="color"
                       value={newColorHex}
                       onChange={e => setNewColorHex(e.target.value)}
                       className="w-8 h-8 p-0.5 border border-neutral-300 rounded-sm cursor-pointer"
-                      title="Select swatch hex"
+                      title="Select hex"
+                    />
+                    <input
+                      type="text"
+                      value={newColorHex}
+                      onChange={e => setNewColorHex(e.target.value)}
+                      className="w-18 border border-neutral-300 rounded-sm px-2 py-1.5 text-xs font-mono uppercase bg-white focus:outline-black"
                     />
                     <input
                       type="text"
                       value={newColorName}
                       onChange={e => setNewColorName(e.target.value)}
-                      className="flex-1 border border-neutral-300 rounded-sm px-3 py-1.5 text-xs focus:outline-black"
-                      placeholder="Colour label (e.g. Charcoal Basalt)"
+                      className="flex-1 min-w-[130px] border border-neutral-300 rounded-sm px-3 py-1.5 text-xs bg-white focus:outline-black"
+                      placeholder="Colourway label (e.g. Basalt & Bronze)"
                     />
                     <button
                       type="button"
                       onClick={handleAddColor}
-                      className="px-3 py-1.5 text-[10px] uppercase font-semibold bg-neutral-100 hover:bg-neutral-200 rounded-sm transition-colors cursor-pointer"
+                      className="px-3 py-1.5 text-[10px] uppercase font-semibold bg-black text-white hover:bg-neutral-800 rounded-sm transition-colors cursor-pointer flex items-center gap-1"
                     >
-                      Add Swatch
+                      <Plus className="w-3 h-3" />
+                      <span>Add Edition</span>
                     </button>
                   </div>
                 </div>
@@ -505,16 +736,59 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
               onClick={() => toggleSection('media')}
               className="flex items-center justify-between border-b border-neutral-100 pb-2 cursor-pointer select-none group"
             >
-              <h2 className="text-[12px] uppercase tracking-wider font-bold text-neutral-900 group-hover:text-black">
-                Imagery & 360° Turntable Gallery
-              </h2>
-              <div className="text-neutral-400 group-hover:text-black">
-                {sectionsOpen.media ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              <div className="flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-neutral-700" />
+                <h2 className="text-[12px] uppercase tracking-wider font-bold text-neutral-900 group-hover:text-black">
+                  Imagery & 360° Turntable Gallery
+                </h2>
+              </div>
+              <div className="flex items-center gap-3">
+                {/* Quick Craiyon Remover Web Link */}
+                <a
+                  href="https://www.craiyon.com/en/background-remover"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  title="Open Craiyon AI Background Remover in new tab to format photos uniformly"
+                  className="inline-flex items-center gap-1 text-[9px] uppercase font-mono tracking-wider font-semibold px-2 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-sm transition-colors cursor-pointer border border-neutral-200"
+                >
+                  <Wand2 className="w-2.5 h-2.5 text-neutral-600" />
+                  <span>Craiyon BG Remover</span>
+                  <ExternalLink className="w-2.5 h-2.5 text-neutral-400" />
+                </a>
+                <div className="text-neutral-400 group-hover:text-black">
+                  {sectionsOpen.media ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </div>
               </div>
             </div>
 
             {sectionsOpen.media && (
               <div className="space-y-5 animate-in fade-in duration-150">
+                {/* Craiyon Tool Info Banner & Automatic Process Guide */}
+                <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <Scissors className="w-3.5 h-3.5 text-neutral-700" />
+                      <span className="text-[10px] uppercase tracking-wider font-bold text-neutral-900">
+                        Uniform Rug Background Isolation
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-neutral-500 leading-relaxed max-w-xl">
+                      Uploads can run through automatic edge cutout by default, stripping floors and room surroundings to present pristine rug silhouettes. Use the quick link to open <strong>Craiyon AI Background Remover</strong> for cloud batch processing.
+                    </p>
+                  </div>
+                  <a
+                    href="https://www.craiyon.com/en/background-remover"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-black text-white hover:bg-neutral-800 text-[9px] uppercase font-semibold tracking-wider rounded-sm shrink-0 transition-colors"
+                  >
+                    <Wand2 className="w-3 h-3" />
+                    <span>Open Craiyon</span>
+                    <ExternalLink className="w-2.5 h-2.5 text-white/70" />
+                  </a>
+                </div>
+
                 {/* Grid & Hover Image Slots with Clipboard & Upload support */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <ImageUploadField
@@ -523,6 +797,7 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
                     onChange={url => setForm(prev => ({ ...prev, cardImage: url }))}
                     aspectRatio="square"
                     helperText="Primary storefront visual asset"
+                    autoRemoveBgDefault={true}
                   />
 
                   <ImageUploadField
@@ -531,12 +806,13 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
                     onChange={url => setForm(prev => ({ ...prev, hoverImage: url }))}
                     aspectRatio="square"
                     helperText="Secondary angle shown on mouse hover"
+                    autoRemoveBgDefault={true}
                   />
                 </div>
 
                 {/* Product Page Gallery (Feeds PDP turntable) */}
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center justify-between mb-1.5 flex-wrap gap-2">
                     <div>
                       <label className="text-[10px] uppercase tracking-wider font-semibold text-neutral-700">
                         Product Page Gallery ({form.galleryImages.length} angles)
@@ -545,24 +821,92 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
                         Upload or paste angles to power the storefront Drag-to-Rotate 360° viewer.
                       </p>
                     </div>
+
+                    {/* Auto-cutout toggle for gallery angles */}
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1.5 text-[9px] uppercase tracking-wider font-mono text-neutral-600 cursor-pointer select-none bg-neutral-100 px-2 py-1 rounded-sm border border-neutral-200">
+                        <input
+                          type="checkbox"
+                          checked={autoCutoutGalleryUploads}
+                          onChange={e => setAutoCutoutGalleryUploads(e.target.checked)}
+                          className="w-3 h-3 text-black rounded-xs border-neutral-300 focus:ring-0 cursor-pointer"
+                        />
+                        <span>Auto-cutout angles on upload</span>
+                      </label>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 mt-2">
-                    {form.galleryImages.map((url, idx) => (
-                      <div key={idx} className="group relative aspect-square bg-neutral-100 border border-neutral-200 rounded-sm overflow-hidden">
-                        <img src={url} alt={`Gallery ${idx + 1}`} className="w-full h-full object-cover" />
-                        <span className="absolute bottom-0.5 left-1 text-[8px] font-mono text-white bg-black/60 px-1 rounded-xs">
-                          #{idx + 1}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveGalleryImage(idx)}
-                          className="absolute top-0.5 right-0.5 p-1 bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                        >
-                          <X className="w-2.5 h-2.5" />
-                        </button>
-                      </div>
-                    ))}
+                    {form.galleryImages.map((url, idx) => {
+                      const linkedColor = form.colours.find(c => c.image === url);
+                      return (
+                        <div key={idx} className="flex flex-col">
+                          <div className="group relative aspect-square bg-neutral-100 border border-neutral-200 rounded-sm overflow-hidden bg-[radial-gradient(#e5e5e5_1px,transparent_1px)] [background-size:8px_8px]">
+                            <img src={url} alt={`Gallery ${idx + 1}`} className="w-full h-full object-contain p-1" />
+                            <span className="absolute bottom-0.5 left-1 text-[8px] font-mono text-white bg-black/60 px-1 rounded-xs pointer-events-none">
+                              #{idx + 1}
+                            </span>
+                            {linkedColor && (
+                              <span className="absolute top-0.5 left-0.5 flex items-center gap-1 bg-black/85 text-white text-[7px] font-mono px-1 py-0.5 rounded-xs pointer-events-none max-w-[85%]">
+                                <span
+                                  className="w-1.5 h-1.5 rounded-full shrink-0 border border-white/40"
+                                  style={{ backgroundColor: linkedColor.hex }}
+                                />
+                                <span className="truncate">{linkedColor.name}</span>
+                              </span>
+                            )}
+                            
+                            {/* Hover Actions: Cutout background or delete */}
+                            <div className="absolute top-0.5 right-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                type="button"
+                                onClick={() => handleCutoutSingleGalleryImage(idx)}
+                                className="p-1 bg-black/80 hover:bg-black text-white rounded-full transition-colors cursor-pointer"
+                                title="Remove background for this angle"
+                              >
+                                <Scissors className="w-2.5 h-2.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveGalleryImage(idx)}
+                                className="p-1 bg-black/80 hover:bg-black text-white rounded-full transition-colors cursor-pointer"
+                                title="Delete from gallery"
+                              >
+                                <X className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Quick link variant dropdown */}
+                          <div className="mt-1">
+                            <select
+                              value={linkedColor?.id || ''}
+                              onChange={e => {
+                                const selId = e.target.value;
+                                if (selId) {
+                                  handleSetColorImage(selId, url);
+                                } else if (linkedColor) {
+                                  handleRemoveColorImage(linkedColor.id);
+                                }
+                              }}
+                              className={`w-full text-[8px] font-mono py-0.5 px-0.5 rounded-xs border truncate cursor-pointer ${
+                                linkedColor
+                                  ? 'bg-neutral-100 border-neutral-300 font-semibold text-neutral-900'
+                                  : 'bg-white border-neutral-200 text-neutral-500 hover:border-neutral-400'
+                              }`}
+                              title="Link this photo to a variant"
+                            >
+                              <option value="">Link Variant...</option>
+                              {form.colours.map(c => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      );
+                    })}
 
                     {/* Add Image tile */}
                     <button
@@ -602,61 +946,74 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
                       </div>
 
                       {/* Quick upload or paste buttons for angle */}
-                      <div className="flex items-center gap-2">
-                        <label className="inline-flex items-center gap-1 px-2 py-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 text-[9px] uppercase tracking-wider rounded-sm cursor-pointer">
-                          <Upload className="w-3 h-3" />
-                          <span>Upload File</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={e => {
-                              const f = e.target.files?.[0];
-                              if (f) {
-                                const r = new FileReader();
-                                r.onload = () => {
-                                  if (typeof r.result === 'string') {
-                                    handleAddGalleryImage(r.result);
-                                  }
-                                };
-                                r.readAsDataURL(f);
-                              }
-                            }}
-                          />
-                        </label>
+                      <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
+                        <div className="flex items-center gap-2">
+                          <label className="inline-flex items-center gap-1 px-2 py-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 text-[9px] uppercase tracking-wider rounded-sm cursor-pointer">
+                            <Upload className="w-3 h-3" />
+                            <span>Upload File</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={e => {
+                                const f = e.target.files?.[0];
+                                if (f) {
+                                  const r = new FileReader();
+                                  r.onload = () => {
+                                    if (typeof r.result === 'string') {
+                                      handleAddGalleryImage(r.result);
+                                    }
+                                  };
+                                  r.readAsDataURL(f);
+                                }
+                              }}
+                            />
+                          </label>
 
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            try {
-                              if (navigator.clipboard?.read) {
-                                const items = await navigator.clipboard.read();
-                                for (const it of items) {
-                                  const imgType = it.types.find(t => t.startsWith('image/'));
-                                  if (imgType) {
-                                    const blob = await it.getType(imgType);
-                                    const r = new FileReader();
-                                    r.onload = () => {
-                                      if (typeof r.result === 'string') {
-                                        handleAddGalleryImage(r.result);
-                                      }
-                                    };
-                                    r.readAsDataURL(blob);
-                                    return;
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                if (navigator.clipboard?.read) {
+                                  const items = await navigator.clipboard.read();
+                                  for (const it of items) {
+                                    const imgType = it.types.find(t => t.startsWith('image/'));
+                                    if (imgType) {
+                                      const blob = await it.getType(imgType);
+                                      const r = new FileReader();
+                                      r.onload = () => {
+                                        if (typeof r.result === 'string') {
+                                          handleAddGalleryImage(r.result);
+                                        }
+                                      };
+                                      r.readAsDataURL(blob);
+                                      return;
+                                    }
                                   }
                                 }
-                              }
-                              const text = await navigator.clipboard?.readText();
-                              if (text && text.startsWith('http')) {
-                                handleAddGalleryImage(text.trim());
-                              }
-                            } catch {}
-                          }}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 text-[9px] uppercase tracking-wider rounded-sm cursor-pointer"
+                                const text = await navigator.clipboard?.readText();
+                                if (text && text.startsWith('http')) {
+                                  handleAddGalleryImage(text.trim());
+                                }
+                              } catch {}
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 text-[9px] uppercase tracking-wider rounded-sm cursor-pointer"
+                          >
+                            <Clipboard className="w-3 h-3" />
+                            <span>Paste from Clipboard</span>
+                          </button>
+                        </div>
+
+                        <a
+                          href="https://www.craiyon.com/en/background-remover"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[9px] uppercase font-mono text-neutral-500 hover:text-black transition-colors ml-auto"
                         >
-                          <Clipboard className="w-3 h-3" />
-                          <span>Paste from Clipboard</span>
-                        </button>
+                          <Wand2 className="w-2.5 h-2.5" />
+                          <span>Craiyon Remover</span>
+                          <ExternalLink className="w-2.5 h-2.5" />
+                        </a>
                       </div>
                     </div>
                   )}
@@ -787,8 +1144,9 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
                   </tbody>
                 </table>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
 
           {/* Pricing & Inventory Metrics (Collapsible) */}
           <div className="bg-white p-6 border border-neutral-200 rounded-sm space-y-4">
@@ -970,6 +1328,207 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
           </div>
         </div>
       </div>
+
+      {/* Modal: Link Image to Variant */}
+      {activePickerColorId && (() => {
+        const targetColor = form.colours.find(c => c.id === activePickerColorId);
+        if (!targetColor) return null;
+        return (
+          <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="bg-white max-w-lg w-full rounded-sm border border-neutral-200 shadow-xl overflow-hidden flex flex-col max-h-[85vh]">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0 shadow-2xs"
+                    style={{ backgroundColor: targetColor.hex }}
+                  />
+                  <div>
+                    <h3 className="text-xs uppercase font-bold tracking-wider text-neutral-900">
+                      Link Image to Variant: {targetColor.name}
+                    </h3>
+                    <p className="text-[10px] text-neutral-500 font-mono">
+                      Select an image from this product or upload a new photo
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActivePickerColorId(null)}
+                  className="p-1 text-neutral-400 hover:text-black cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-5 overflow-y-auto space-y-4">
+                {/* 1. Pick from Existing Product Media */}
+                <div>
+                  <div className="text-[10px] uppercase font-semibold tracking-wider text-neutral-700 mb-2">
+                    Available Product Images ({allAvailableImages.length})
+                  </div>
+                  {allAvailableImages.length === 0 ? (
+                    <p className="text-xs text-neutral-400 py-3">No images uploaded for this product yet.</p>
+                  ) : (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                      {allAvailableImages.map((imgUrl, i) => {
+                        const isSelected = targetColor.image === imgUrl;
+                        return (
+                          <div
+                            key={i}
+                            onClick={() => handleSetColorImage(targetColor.id, imgUrl)}
+                            className={`group relative aspect-square rounded-sm overflow-hidden border-2 cursor-pointer transition-all ${
+                              isSelected
+                                ? 'border-black ring-2 ring-black/20'
+                                : 'border-neutral-200 hover:border-neutral-400'
+                            }`}
+                          >
+                            <img src={imgUrl} alt={`Option ${i + 1}`} className="w-full h-full object-cover" />
+                            {isSelected && (
+                              <div className="absolute inset-0 bg-black/35 flex items-center justify-center text-white">
+                                <Check className="w-5 h-5" />
+                              </div>
+                            )}
+                            <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[8px] font-mono text-center py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                              Click to link
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Upload New Image or Paste URL */}
+                <div className="pt-3 border-t border-neutral-100 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] uppercase font-semibold tracking-wider text-neutral-700">
+                      Upload or Paste Image for this Variant
+                    </div>
+                    <a
+                      href="https://www.craiyon.com/en/background-remover"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[9px] uppercase font-mono text-neutral-500 hover:text-black transition-colors"
+                      title="Open Craiyon AI Background Remover"
+                    >
+                      <Wand2 className="w-2.5 h-2.5" />
+                      <span>Craiyon Remover</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={pickerCustomUrl}
+                      onChange={e => setPickerCustomUrl(e.target.value)}
+                      placeholder="Paste image URL..."
+                      className="flex-1 border border-neutral-300 rounded-sm px-2.5 py-1.5 text-xs font-mono focus:outline-black"
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (pickerCustomUrl.trim()) {
+                          try {
+                            const cutout = await removeImageBackgroundInBrowser(pickerCustomUrl.trim());
+                            handleSetColorImage(targetColor.id, cutout);
+                            if (!form.galleryImages.includes(cutout)) {
+                              handleAddGalleryImage(cutout);
+                            }
+                          } catch {
+                            handleSetColorImage(targetColor.id, pickerCustomUrl.trim());
+                          }
+                          setPickerCustomUrl('');
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-black text-white text-[10px] uppercase font-semibold tracking-wider rounded-sm cursor-pointer"
+                    >
+                      Apply
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-[10px] uppercase tracking-wider font-semibold rounded-sm cursor-pointer transition-colors">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Upload & Auto-Cutout</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => {
+                          const f = e.target.files?.[0];
+                          if (f) {
+                            const r = new FileReader();
+                            r.onload = async () => {
+                              if (typeof r.result === 'string') {
+                                try {
+                                  const cutout = await removeImageBackgroundInBrowser(r.result);
+                                  handleSetColorImage(targetColor.id, cutout);
+                                  if (!form.galleryImages.includes(cutout)) {
+                                    handleAddGalleryImage(cutout);
+                                  }
+                                } catch {
+                                  handleSetColorImage(targetColor.id, r.result);
+                                }
+                              }
+                            };
+                            r.readAsDataURL(f);
+                          }
+                        }}
+                      />
+                    </label>
+
+                    {targetColor.image && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (targetColor.image) {
+                            try {
+                              const cutout = await removeImageBackgroundInBrowser(targetColor.image);
+                              handleSetColorImage(targetColor.id, cutout);
+                              showToast('Background cleared from current variant image');
+                            } catch {
+                              showToast('Could not cutout this image');
+                            }
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 text-[10px] uppercase font-semibold tracking-wider rounded-sm cursor-pointer"
+                      >
+                        <Scissors className="w-3 h-3" />
+                        <span>Cutout Current</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-5 py-3 border-t border-neutral-100 bg-neutral-50 flex items-center justify-between">
+                {targetColor.image ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleRemoveColorImage(targetColor.id);
+                      setActivePickerColorId(null);
+                    }}
+                    className="text-xs text-red-500 hover:text-red-700 cursor-pointer"
+                  >
+                    Unlink Image
+                  </button>
+                ) : <span />}
+                <button
+                  type="button"
+                  onClick={() => setActivePickerColorId(null)}
+                  className="px-4 py-1.5 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 text-[10px] uppercase font-semibold tracking-wider rounded-sm cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </form>
   );
 };

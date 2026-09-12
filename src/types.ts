@@ -11,6 +11,8 @@ export interface ProductColor {
   id: string;
   name: string;
   hex: string;
+  image?: string; // Main image linked to this variant (used in variants page & PDP lead)
+  galleryImages?: string[]; // Additional gallery shots specific to this color variant
 }
 
 export interface Product {
