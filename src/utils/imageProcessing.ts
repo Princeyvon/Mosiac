@@ -13,6 +13,55 @@ export interface BackgroundRemovalOptions {
   featherRadius?: number;
 }
 
+export async function compressImageIfNeeded(
+  imageSrc: string,
+  maxDimension: number = 1200,
+  quality: number = 0.88
+): Promise<string> {
+  if (!imageSrc || !imageSrc.startsWith('data:image/')) {
+    return imageSrc;
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
+
+        if (width <= maxDimension && height <= maxDimension) {
+          return resolve(imageSrc);
+        }
+
+        if (width > height) {
+          height = Math.round((height * maxDimension) / width);
+          width = maxDimension;
+        } else {
+          width = Math.round((width * maxDimension) / height);
+          height = maxDimension;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve(imageSrc);
+
+        ctx.drawImage(img, 0, 0, width, height);
+        // If it was png, keep png; else use jpeg
+        const isPng = imageSrc.startsWith('data:image/png');
+        const outputType = isPng ? 'image/png' : 'image/jpeg';
+        resolve(canvas.toDataURL(outputType, quality));
+      } catch {
+        resolve(imageSrc);
+      }
+    };
+    img.onerror = () => resolve(imageSrc);
+    img.src = imageSrc;
+  });
+}
+
 /**
  * Remove background automatically in client canvas:
  * Identifies background hue/luminance from the 4 corner pixels (typical for studio/floor rug shots),
@@ -39,8 +88,20 @@ export async function removeImageBackgroundInBrowser(
           return resolve(imageSrc);
         }
 
-        const width = img.naturalWidth || img.width;
-        const height = img.naturalHeight || img.height;
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
+        const maxDimension = 1200;
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
         canvas.width = width;
         canvas.height = height;
 

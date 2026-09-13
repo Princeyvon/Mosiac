@@ -13,18 +13,22 @@ import {
   ExternalLink,
   Mail,
   MapPin,
-  Check
+  Check,
+  Receipt,
+  Copy
 } from 'lucide-react';
 import { PromoManagementView } from './PromoManagementView';
 import { FiltersManagementView } from './FiltersManagementView';
 import { PoliciesManagementView } from './PoliciesManagementView';
 import { TeamManagementView } from './TeamManagementView';
 import { ProfileManagementView } from './ProfileManagementView';
+import { StoreSettingsView } from './StoreSettingsView';
 
 export const DashboardSubViews: React.FC<{ activeTab: string }> = ({ activeTab }) => {
-  const { orders, auditLogs, formatPrice, showToast } = useStore();
+  const { orders, auditLogs, formatPrice, showToast, currentPermissions, navigateToReceipt } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
 
   // Local state for orders status manipulation
   const [orderList, setOrderList] = useState(orders);
@@ -33,6 +37,11 @@ export const DashboardSubViews: React.FC<{ activeTab: string }> = ({ activeTab }
     setOrderList(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
     showToast(`Order ${orderId} marked as ${newStatus}`);
   };
+
+  // STORE SETTINGS VIEW (Collections, Shapes, Styles, Sizing Guide, Weight Formula)
+  if (activeTab === 'store-settings' || activeTab === 'settings') {
+    return <StoreSettingsView />;
+  }
 
   // PROMO & POPUPS VIEW
   if (activeTab === 'discounts' || activeTab === 'promo') {
@@ -101,8 +110,8 @@ export const DashboardSubViews: React.FC<{ activeTab: string }> = ({ activeTab }
                     {formatPrice(o.total)}
                     <span className="block text-[10px] font-normal text-neutral-400 font-sans">{o.itemsCount} {o.itemsCount === 1 ? 'piece' : 'pieces'}</span>
                   </div>
-                  <div className="col-span-2 text-right">
-                    <span className={`px-2.5 py-1 rounded-sm text-[10px] font-semibold tracking-wide uppercase ${
+                  <div className="col-span-2 flex items-center justify-end gap-2">
+                    <span className={`px-2 py-0.5 rounded-sm text-[10px] font-semibold tracking-wide uppercase ${
                       o.status === 'Fulfilled'
                         ? 'bg-neutral-100 text-neutral-800'
                         : o.status === 'Dispatched'
@@ -111,24 +120,78 @@ export const DashboardSubViews: React.FC<{ activeTab: string }> = ({ activeTab }
                     }`}>
                       {o.status}
                     </span>
+
+                    <button
+                      type="button"
+                      title="Open Client Digital Receipt & Pass"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigateToReceipt(o.id);
+                      }}
+                      className="p-1 rounded hover:bg-neutral-200 text-neutral-600 hover:text-neutral-950 transition-colors cursor-pointer"
+                    >
+                      <Receipt className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
 
                 {/* Expanded Details Drawer */}
                 {isExpanded && (
-                  <div className="p-5 bg-neutral-50/60 grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in duration-150">
+                  <div className="p-5 bg-neutral-50/60 grid grid-cols-1 md:grid-cols-4 gap-4 animate-in fade-in duration-150">
                     <div className="space-y-1">
                       <span className="text-[10px] uppercase font-mono tracking-wider text-neutral-400">Shipping Destination</span>
                       <p className="text-neutral-800 font-medium">{o.customerName}</p>
                       <p className="text-[11px] text-neutral-500">Curatorial Residence · 742 Evergreen Terrace</p>
-                      <p className="text-[11px] text-neutral-500">Kyoto 604-8134, Japan</p>
+                      <p className="text-[11px] text-neutral-500">{o.destinationCity || 'Paris, France'}</p>
                     </div>
 
                     <div className="space-y-1">
                       <span className="text-[10px] uppercase font-mono tracking-wider text-neutral-400">Logistics & Handling</span>
-                      <p className="text-neutral-800 font-medium">DHL Global White-Glove Air</p>
-                      <p className="text-[11px] font-mono text-neutral-500">Tracking: #DHL-984-2194-01</p>
+                      <p className="text-neutral-800 font-medium">{o.carrier || 'DHL Global White-Glove Air'}</p>
+                      <p className="text-[11px] font-mono text-neutral-500">Tracking: #{o.trackingNumber || 'DHL-984-2194-01'}</p>
                       <p className="text-[11px] text-emerald-600">Insured Value: 100% Comprehensive</p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] uppercase font-mono tracking-wider text-neutral-400">Client Receipt & Transit Pass</span>
+                      <div className="space-y-1.5 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigateToReceipt(o.id);
+                          }}
+                          className="w-full py-1.5 px-2.5 rounded-sm bg-neutral-900 hover:bg-neutral-800 text-white text-[11px] font-medium flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                        >
+                          <Receipt className="w-3 h-3 text-amber-300" />
+                          <span>View Official Receipt</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const link = `${window.location.origin}${window.location.pathname}#/receipt/${o.id}`;
+                            navigator.clipboard?.writeText(link);
+                            setCopiedOrderId(o.id);
+                            showToast(`Copied receipt link for ${o.id}`);
+                            setTimeout(() => setCopiedOrderId(null), 2500);
+                          }}
+                          className="w-full py-1 px-2 rounded-sm bg-white border border-neutral-300 hover:bg-neutral-100 text-neutral-700 text-[10px] font-medium flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                        >
+                          {copiedOrderId === o.id ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              <span className="text-emerald-700">Link Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3 text-neutral-400" />
+                              <span>Copy Unique Client Link</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
 
                     <div className="space-y-2">

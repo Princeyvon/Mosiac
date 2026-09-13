@@ -21,7 +21,8 @@ import {
   CheckCircle2,
   Filter,
   FileText,
-  UserCheck
+  UserCheck,
+  Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -38,7 +39,9 @@ export const DashboardShell: React.FC = () => {
     hasUnpublishedChanges,
     publishStagedChanges,
     notifications,
-    toastMessage
+    toastMessage,
+    currentPermissions,
+    activeTeamMember
   } = useStore();
 
   const [showNotifications, setShowNotifications] = useState(false);
@@ -134,6 +137,7 @@ export const DashboardShell: React.FC = () => {
       items: [
         { id: 'overview', label: 'Overview', icon: LayoutDashboard },
         { id: 'catalogue', label: 'Catalogue', icon: Grid },
+        { id: 'store-settings', label: 'Store Settings', icon: Settings },
         { id: 'filters', label: 'Storefront Filters', icon: Filter },
         { id: 'discounts', label: 'Promos & Popups', icon: Percent },
       ]
@@ -148,16 +152,16 @@ export const DashboardShell: React.FC = () => {
     {
       heading: 'Studio Governance',
       items: [
-        { id: 'team', label: 'Studio Team', icon: Shield },
+        { id: 'team', label: 'Studio Team & Access', icon: Shield },
         { id: 'policies', label: 'Terms & Policies', icon: FileText },
         { id: 'history', label: 'Activity Log', icon: History },
-        { id: 'profile', label: 'Studio Settings', icon: UserCheck },
+        { id: 'profile', label: 'Director Profile', icon: UserCheck },
       ]
     }
   ];
 
   return (
-    <div className="min-h-screen bg-neutral-50 flex flex-col text-neutral-900 font-sans">
+    <div className="h-screen bg-neutral-50 flex flex-col text-neutral-900 font-sans overflow-hidden">
       {/* Toast popup */}
       {toastMessage && (
         <div className="fixed top-16 right-6 z-50 bg-black text-white text-[11px] font-medium px-4 py-2.5 rounded-sm shadow-lg flex items-center gap-2 animate-in fade-in duration-150">
@@ -167,7 +171,7 @@ export const DashboardShell: React.FC = () => {
       )}
 
       {/* TOP BAR */}
-      <header className="sticky top-0 z-30 bg-white border-b border-neutral-200 h-14 px-4 sm:px-6 flex items-center justify-between">
+      <header className="shrink-0 bg-white border-b border-neutral-200 h-14 px-4 sm:px-6 flex items-center justify-between z-30">
         {/* Left: Brand name + subtitle */}
         <div className="flex items-center gap-3">
           <span className="font-serif italic text-2xl font-normal text-black tracking-tight select-none">
@@ -181,24 +185,34 @@ export const DashboardShell: React.FC = () => {
         {/* Right Chrome Controls: PUBLISH, Bell, + NEW PRODUCT, Avatar badge, Logout */}
         <div className="flex items-center gap-2.5 sm:gap-3.5">
           {/* PUBLISH Button */}
-          <motion.button
-            id="dash-global-publish-btn"
-            type="button"
-            whileTap={{ scale: 0.95 }}
-            onClick={publishStagedChanges}
-            title="Push staged catalogue edits live to storefront"
-            className={`inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-sm text-[11px] font-semibold tracking-wider uppercase border transition-all duration-150 cursor-pointer ${
-              hasUnpublishedChanges
-                ? 'border-amber-500 bg-amber-50 text-amber-900 hover:bg-amber-100 ring-1 ring-amber-300'
-                : 'border-neutral-300 bg-white text-neutral-700 hover:border-black hover:text-black'
-            }`}
-          >
-            <UploadCloud className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">
-              {hasUnpublishedChanges ? 'Publish (Staged Changes)' : 'Publish'}
+          {currentPermissions.canPublishLive ? (
+            <motion.button
+              id="dash-global-publish-btn"
+              type="button"
+              whileTap={{ scale: 0.95 }}
+              onClick={publishStagedChanges}
+              title="Push staged catalogue edits live to storefront"
+              className={`inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-sm text-[11px] font-semibold tracking-wider uppercase border transition-all duration-150 cursor-pointer ${
+                hasUnpublishedChanges
+                  ? 'border-amber-500 bg-amber-50 text-amber-900 hover:bg-amber-100 ring-1 ring-amber-300'
+                  : 'border-neutral-300 bg-white text-neutral-700 hover:border-black hover:text-black'
+              }`}
+            >
+              <UploadCloud className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">
+                {hasUnpublishedChanges ? 'Publish (Staged Changes)' : 'Publish'}
+              </span>
+              <span className="sm:hidden">Publish</span>
+            </motion.button>
+          ) : (
+            <span
+              title="Publish permission restricted for current staff role"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-[11px] font-mono uppercase bg-neutral-100 text-neutral-400 border border-neutral-200 cursor-not-allowed"
+            >
+              <Lock className="w-3 h-3 text-neutral-400" />
+              <span>Publish Locked</span>
             </span>
-            <span className="sm:hidden">Publish</span>
-          </motion.button>
+          )}
 
           {/* Notification Bell */}
           <div className="relative">
@@ -239,26 +253,33 @@ export const DashboardShell: React.FC = () => {
           </div>
 
           {/* Primary + NEW [PRODUCT] button */}
-          <motion.button
-            id="dash-top-new-product-btn"
-            type="button"
-            whileTap={{ scale: 0.95 }}
-            onClick={() => createNewProduct()}
-            className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-sm text-[11px] font-semibold tracking-wider uppercase bg-black text-white hover:bg-neutral-800 transition-colors shadow-xs cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">New Product</span>
-            <span className="sm:hidden">New</span>
-          </motion.button>
+          {currentPermissions.canCreateProducts && (
+            <motion.button
+              id="dash-top-new-product-btn"
+              type="button"
+              whileTap={{ scale: 0.95 }}
+              onClick={() => createNewProduct()}
+              className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-sm text-[11px] font-semibold tracking-wider uppercase bg-black text-white hover:bg-neutral-800 transition-colors shadow-xs cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">New Product</span>
+              <span className="sm:hidden">New</span>
+            </motion.button>
+          )}
 
-          {/* Account badge */}
+          {/* Staff Persona Badge */}
           <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-neutral-200">
-            <div className="w-7 h-7 rounded-sm bg-neutral-900 text-white flex items-center justify-center font-bold text-[11px]">
-              A
+            <div className="w-7 h-7 rounded-sm bg-neutral-900 text-white flex items-center justify-center font-bold text-[10px] uppercase">
+              {activeTeamMember.name.slice(0, 1)}
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-600">
-              ADMIN
-            </span>
+            <div className="text-left">
+              <span className="block text-[10px] font-bold text-neutral-900 leading-none">
+                {activeTeamMember.name.split(' ')[0]}
+              </span>
+              <span className="text-[8px] font-mono uppercase text-neutral-400">
+                {activeTeamMember.role}
+              </span>
+            </div>
           </div>
 
           {/* Logout icon */}
@@ -273,10 +294,10 @@ export const DashboardShell: React.FC = () => {
         </div>
       </header>
 
-      {/* BODY WITH STATIC LEFT SIDEBAR + MAIN CONTENT */}
-      <div className="flex-1 flex">
-        {/* STATIC LEFT SIDEBAR (No collapse, clean spatial hierarchy) */}
-        <aside className="w-60 bg-white border-r border-neutral-200 shrink-0 flex flex-col justify-between select-none">
+      {/* BODY WITH STATIC FIXED 100% HEIGHT LEFT SIDEBAR + MAIN CONTENT */}
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        {/* STATIC LEFT SIDEBAR (100% height, pinned, never scrolls with the page) */}
+        <aside className="w-60 bg-white border-r border-neutral-200 shrink-0 flex flex-col justify-between select-none h-full overflow-y-auto">
           {/* Top Navigation Sections */}
           <div className="p-3.5 space-y-6">
             {NAV_SECTIONS.map((section, sIdx) => (
@@ -311,7 +332,7 @@ export const DashboardShell: React.FC = () => {
           </div>
 
           {/* Bottom Sidebar: Return to Storefront */}
-          <div className="p-3.5 border-t border-neutral-200">
+          <div className="p-3.5 border-t border-neutral-200 shrink-0">
             <button
               type="button"
               onClick={navigateToStore}
@@ -323,8 +344,8 @@ export const DashboardShell: React.FC = () => {
           </div>
         </aside>
 
-        {/* MAIN VIEW AREA */}
-        <main className="flex-1 p-4 sm:p-8 max-w-[1600px] w-full mx-auto overflow-y-auto">
+        {/* MAIN VIEW AREA (Independently scrollable) */}
+        <main className="flex-1 p-4 sm:p-8 max-w-[1600px] w-full mx-auto h-full overflow-y-auto min-h-0">
           <AnimatePresence mode="wait">
             <motion.div
               key={editingProductId || activeAdminTab}

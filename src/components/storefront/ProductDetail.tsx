@@ -237,6 +237,8 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ slug }) => {
         onClose={() => setShowSizingGuide(false)}
         productName={product.name}
         productShape={product.shape}
+        productStyle={product.shape || 'High-Relief Hand Carved'}
+        productMaterial={product.material}
       />
     </div>
   );

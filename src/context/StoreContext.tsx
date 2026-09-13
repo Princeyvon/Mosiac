@@ -4,14 +4,22 @@ import {
   CartItem,
   Currency,
   Order,
+  OrderItemSummary,
   AuditLog,
   StorefrontFilter,
   PromoPopupConfig,
   PolicySection,
   TeamMember,
-  UserProfile
+  TeamPermissions,
+  UserProfile,
+  CollectionItem,
+  ShapeItem,
+  StyleItem,
+  WeightFormulaConfig,
+  SizingGuideConfig
 } from '../types';
 import { INITIAL_PRODUCTS, CURRENCIES } from '../data/initialProducts';
+import { getPersistentItem, getPersistentItemSync, setPersistentItem } from '../utils/persistentStorage';
 
 interface StoreContextType {
   // Products (Live vs Staged)
@@ -20,12 +28,12 @@ interface StoreContextType {
   hasUnpublishedChanges: boolean;
   publishStagedChanges: () => void;
   toggleProductStatus: (id: string, field: 'visible' | 'soldOut' | 'featured' | 'newArrival' | 'starred') => void;
-  saveProductDraft: (product: Product) => void;
+  saveProductDraft: (product: Product, publishLive?: boolean) => void;
   deleteProduct: (id: string) => void;
   createNewProduct: () => string; // returns new product id
 
   // Routing / View state
-  currentView: 'store' | 'pdp' | 'variants' | 'cart' | 'policies' | 'dash';
+  currentView: 'store' | 'pdp' | 'variants' | 'cart' | 'policies' | 'dash' | 'receipt';
   currentProductSlug: string | null;
   selectedColorVariant: string | null;
   setSelectedColorVariant: (color: string | null) => void;
@@ -37,6 +45,9 @@ interface StoreContextType {
   navigateToCart: () => void;
   navigateToPolicies: () => void;
   navigateToDash: (tab?: string) => void;
+  currentReceiptOrderId: string | null;
+  navigateToReceipt: (orderId: string) => void;
+  getOrderById: (orderId: string) => Order | undefined;
   activeAdminTab: string;
   setActiveAdminTab: (tab: string) => void;
   editingProductId: string | null;
@@ -90,11 +101,41 @@ interface StoreContextType {
   policies: PolicySection[];
   updatePolicySection: (id: string, newTitle: string, newContent: string) => void;
 
-  // Team
+  // Store Settings: Collections
+  collections: CollectionItem[];
+  addCollection: (name: string, description: string, slug?: string) => void;
+  updateCollection: (id: string, updates: Partial<CollectionItem>) => void;
+  deleteCollection: (id: string) => void;
+
+  // Store Settings: Shapes & Styles
+  shapes: ShapeItem[];
+  addShape: (name: string, description: string, aspectHint?: string, placementGuidance?: string) => void;
+  updateShape: (id: string, updates: Partial<ShapeItem>) => void;
+  deleteShape: (id: string) => void;
+  styles: StyleItem[];
+  addStyle: (name: string, densityMultiplier: number, techniqueDescription: string, pileHeightMm?: number) => void;
+  updateStyle: (id: string, updates: Partial<StyleItem>) => void;
+  deleteStyle: (id: string) => void;
+
+  // Store Settings: Weight Formula
+  weightFormula: WeightFormulaConfig;
+  updateWeightFormula: (updates: Partial<WeightFormulaConfig>) => void;
+  recalculateAllProductWeights: () => void;
+  calculateWeight: (widthCm: number, depthCm: number, styleName?: string, materialName?: string) => number;
+
+  // Store Settings: Sizing Guide Configuration
+  sizingGuideConfig: SizingGuideConfig;
+  updateSizingGuideConfig: (updates: Partial<SizingGuideConfig>) => void;
+
+  // Team & Granular Permissions
   teamMembers: TeamMember[];
   toggleTeamMemberActive: (id: string) => void;
   updateTeamMember: (id: string, updates: Partial<TeamMember>) => void;
   addTeamMember: (member: Omit<TeamMember, 'id' | 'lastActive'>) => void;
+  deleteTeamMember: (id: string) => void;
+  activeTeamMember: TeamMember;
+  setActiveTeamMemberId: (id: string) => void;
+  currentPermissions: TeamPermissions;
 
   // Profile
   userProfile: UserProfile;
@@ -141,8 +182,284 @@ const STORAGE_KEYS = {
   SHOW_FILTERS: 'mosiac_show_filters_v1',
   PROMO_CONFIG: 'mosiac_promo_config_v1',
   POLICIES: 'mosiac_policies_v1',
-  TEAM: 'mosiac_team_v1',
+  TEAM: 'mosiac_team_v2',
   PROFILE: 'mosiac_profile_v1',
+  COLLECTIONS: 'mosiac_collections_v1',
+  SHAPES: 'mosiac_shapes_v1',
+  STYLES: 'mosiac_styles_v1',
+  WEIGHT_FORMULA: 'mosiac_weight_formula_v1',
+  SIZING_GUIDE: 'mosiac_sizing_guide_v1',
+  ACTIVE_TM_ID: 'mosiac_active_tm_id_v1',
+  ORDERS: 'mosiac_orders_v2',
+  RECEIPT_ID: 'mosiac_receipt_id_v1',
+};
+
+export const DEFAULT_ROLE_PERMISSIONS: Record<string, TeamPermissions> = {
+  'Studio Director': {
+    canViewDashboard: true,
+    canEditProducts: true,
+    canCreateProducts: true,
+    canPublishLive: true,
+    canDeleteProducts: true,
+    canManageOrders: true,
+    canManageClientele: true,
+    canManageDiscounts: true,
+    canManageStoreSettings: true,
+    canManagePolicies: true,
+    canManageTeam: true,
+    canViewFinancials: true,
+  },
+  'Senior Curator': {
+    canViewDashboard: true,
+    canEditProducts: true,
+    canCreateProducts: true,
+    canPublishLive: true,
+    canDeleteProducts: false,
+    canManageOrders: true,
+    canManageClientele: true,
+    canManageDiscounts: true,
+    canManageStoreSettings: false,
+    canManagePolicies: false,
+    canManageTeam: false,
+    canViewFinancials: true,
+  },
+  'Atelier Manager': {
+    canViewDashboard: true,
+    canEditProducts: true,
+    canCreateProducts: false,
+    canPublishLive: false,
+    canDeleteProducts: false,
+    canManageOrders: true,
+    canManageClientele: true,
+    canManageDiscounts: false,
+    canManageStoreSettings: false,
+    canManagePolicies: false,
+    canManageTeam: false,
+    canViewFinancials: false,
+  },
+  'Logistics Lead': {
+    canViewDashboard: true,
+    canEditProducts: false,
+    canCreateProducts: false,
+    canPublishLive: false,
+    canDeleteProducts: false,
+    canManageOrders: true,
+    canManageClientele: true,
+    canManageDiscounts: false,
+    canManageStoreSettings: false,
+    canManagePolicies: false,
+    canManageTeam: false,
+    canViewFinancials: false,
+  },
+  'Custom Role': {
+    canViewDashboard: true,
+    canEditProducts: false,
+    canCreateProducts: false,
+    canPublishLive: false,
+    canDeleteProducts: false,
+    canManageOrders: false,
+    canManageClientele: false,
+    canManageDiscounts: false,
+    canManageStoreSettings: false,
+    canManagePolicies: false,
+    canManageTeam: false,
+    canViewFinancials: false,
+  }
+};
+
+export const INITIAL_COLLECTIONS: CollectionItem[] = [
+  {
+    id: 'col-1',
+    name: 'Bespoke Rugs',
+    slug: 'bespoke-rugs',
+    description: 'Flagship hand-tufted New Zealand wool and bamboo silk statement pieces.',
+    featured: true,
+  },
+  {
+    id: 'col-2',
+    name: 'Monolith Architectural',
+    slug: 'monolith-architectural',
+    description: 'Sculptural carved pile works inspired by brutalist and modernist forms.',
+    featured: true,
+  },
+  {
+    id: 'col-3',
+    name: 'Silk & Wool Archival',
+    slug: 'silk-wool-archival',
+    description: 'Fine high-density luster-spun yarns with subtle light refraction.',
+    featured: false,
+  },
+  {
+    id: 'col-4',
+    name: 'Atelier Sculptural',
+    slug: 'atelier-sculptural',
+    description: 'Contoured bas-relief and asymmetric silhouettes for gallery spaces.',
+    featured: true,
+  },
+  {
+    id: 'col-5',
+    name: 'Linear Runners',
+    slug: 'linear-runners',
+    description: 'Directional hall and bedside runners tailored to architectural corridors.',
+    featured: false,
+  }
+];
+
+export const INITIAL_SHAPES: ShapeItem[] = [
+  {
+    id: 'shp-1',
+    name: 'Circular',
+    slug: 'circular',
+    description: 'Perfect radial boundary evoking Japanese Enso geometry and organic balance.',
+    aspectHint: '1:1 Uniform Diameter',
+    placementGuidance: 'Ideal for round dining tables, intimate conversational groupings, and anchoring reading chairs.'
+  },
+  {
+    id: 'shp-2',
+    name: 'Organic Irregular',
+    slug: 'organic-irregular',
+    description: 'Freeform curvilinear silhouette that softens rigid architectural angles.',
+    aspectHint: 'Fluid Asymmetric Ratio',
+    placementGuidance: 'Best placed angled beneath modern low-slung seating or as an unobstructed floor artwork.'
+  },
+  {
+    id: 'shp-3',
+    name: 'Curvilinear Wave',
+    slug: 'curvilinear-wave',
+    description: 'Rhythmic stepped contours with dynamic directional movement.',
+    aspectHint: 'Elongated Flowing Form',
+    placementGuidance: 'Complements curved sofas, rounded credenzas, and open salon transitions.'
+  },
+  {
+    id: 'shp-4',
+    name: 'Architectural Oval',
+    slug: 'architectural-oval',
+    description: 'Stretched radial form combining linear sofa length with gentle curved corners.',
+    aspectHint: '1:1.5 Elliptical Geometry',
+    placementGuidance: 'Perfect under oval dining tables or elongated living room sofa arrangements.'
+  },
+  {
+    id: 'shp-5',
+    name: 'Rectangular Linear',
+    slug: 'rectangular-linear',
+    description: 'Classic rectilinear proportions with crisp hand-bound edges.',
+    aspectHint: 'Standard Architectural Grid',
+    placementGuidance: 'Anchors standard sofa sets with front legs on rug; pairs with king and queen bed frames.'
+  },
+  {
+    id: 'shp-6',
+    name: 'Asymmetric Runner',
+    slug: 'asymmetric-runner',
+    description: 'Directional runner with bespoke edge contouring for passageways and bedsides.',
+    aspectHint: '1:3 to 1:4 Corridor Scale',
+    placementGuidance: 'Designed for gallery hallways, entry vestibules, and bedside comfort.'
+  }
+];
+
+export const INITIAL_STYLES: StyleItem[] = [
+  {
+    id: 'sty-1',
+    name: 'High-Relief Hand Carved',
+    slug: 'high-relief-hand-carved',
+    pileHeightMm: 16,
+    densityMultiplier: 1.25,
+    techniqueDescription: 'Deep sculptural shearing creating dimensional shadows and tactile terrain.'
+  },
+  {
+    id: 'sty-2',
+    name: 'Minimalist Cut-Pile',
+    slug: 'minimalist-cut-pile',
+    pileHeightMm: 12,
+    densityMultiplier: 1.0,
+    techniqueDescription: 'Even, velvet-dense surface providing serene sound dampening and underfoot softness.'
+  },
+  {
+    id: 'sty-3',
+    name: 'Architectural Loop & Cut',
+    slug: 'architectural-loop-and-cut',
+    pileHeightMm: 10,
+    densityMultiplier: 0.9,
+    techniqueDescription: 'Dual-texture alternating between tight loop rows and plush cut tufts for durability.'
+  },
+  {
+    id: 'sty-4',
+    name: 'Luster Silk Gradient',
+    slug: 'luster-silk-gradient',
+    pileHeightMm: 14,
+    densityMultiplier: 1.15,
+    techniqueDescription: 'Subtle blend of bamboo silk and wool creating an ombre luminescence when light shifts.'
+  }
+];
+
+export const INITIAL_WEIGHT_FORMULA: WeightFormulaConfig = {
+  unit: 'kg',
+  densityKgPerM2: 3.45,
+  basePackagingKg: 0.8,
+  materialMultipliers: {
+    '100% Hand-Tufted New Zealand Wool': 1.0,
+    'New Zealand Wool & Bamboo Silk': 1.12,
+    'Pure Luster Bamboo Silk': 1.2,
+    'Studio Wool Blend': 0.95
+  },
+  styleMultipliers: {
+    'High-Relief Hand Carved': 1.25,
+    'Minimalist Cut-Pile': 1.0,
+    'Architectural Loop & Cut': 0.9,
+    'Luster Silk Gradient': 1.15
+  }
+};
+
+export const INITIAL_SIZING_GUIDE: SizingGuideConfig = {
+  eyebrow: 'Studio Sizing & Placement Guide',
+  headline: 'Scale & Dimensions Reference',
+  description: 'Every Mosiac piece is hand-tufted from pure New Zealand virgin wool and luster-spun botanical bamboo silk. Use this architectural guide to select the ideal scale for your interior.',
+  livingRoomTip: 'For standard seating groups, choose L (250cm) so front sofa legs rest naturally over the rug, anchoring the coffee table. For compact apartments or statement focal points, choose M (200cm).',
+  bedroomTip: 'For a king bed, select XL (300cm) to provide generous 60–80cm margins on either side and the foot of the bed. For queen beds, L (250cm) offers ideal proportion.',
+  diningRoomTip: 'Ensure the rug extends at least 60cm beyond all edges of your dining table so chairs remain on the rug even when pushed back.',
+  shapeSpecificTips: {
+    'Circular': 'Circular rugs soften rigid box rooms and frame round coffee tables with an even 25–40cm perimeter margin.',
+    'Organic Irregular': 'Stated dimensions describe the overall bounding envelope. Silhouette narrows gracefully at the center, creating organic negative space.',
+    'Curvilinear Wave': 'Orient the flowing wave towards the room entrance or focal view to guide visual momentum naturally.',
+    'Architectural Oval': 'Allows elongated sofa groupings without sharp corner traffic bottlenecks. Superb for open-plan passages.',
+    'Rectangular Linear': 'Align with the primary architectural axis of your room; ensure rug edges parallel major walls.',
+    'Asymmetric Runner': 'Maintain at least 10–15cm of bare floor between the runner edge and walls or baseboards.'
+  },
+  sizeRows: [
+    {
+      id: 'sz-s',
+      size: 'S',
+      name: 'Small / Accent',
+      widthCm: 150,
+      depthCm: 150,
+      idealFor: 'Entryways, intimate reading nooks, bedside accent, executive desk vignettes'
+    },
+    {
+      id: 'sz-m',
+      size: 'M',
+      name: 'Medium / Studio',
+      widthCm: 200,
+      depthCm: 200,
+      idealFor: 'Two-to-three seater sofas, apartment living rooms, queen bed footings, home offices'
+    },
+    {
+      id: 'sz-l',
+      size: 'L',
+      name: 'Large / Living',
+      widthCm: 250,
+      depthCm: 250,
+      idealFor: 'Full living room conversational groupings (front sofa legs anchored), 6-seat dining areas'
+    },
+    {
+      id: 'sz-xl',
+      size: 'XL',
+      name: 'Extra Large / Grand',
+      widthCm: 300,
+      depthCm: 300,
+      idealFor: 'Grand open-plan living salons, master suites anchoring king beds with nightstands, 8–10 seat dining tables'
+    }
+  ],
+  customInquiryText: 'Need custom dimensions or tailored architectural shapes? Our studio crafts custom tufted pieces to exact millimeter specifications.',
+  customInquiryUrl: 'https://ig.me/m/rugmosiac'
 };
 
 const INITIAL_FILTERS: StorefrontFilter[] = [
@@ -213,7 +530,8 @@ const INITIAL_TEAM: TeamMember[] = [
     active: true,
     pin: '4821',
     password: '••••••••',
-    lastActive: 'Just now'
+    lastActive: 'Just now',
+    permissions: DEFAULT_ROLE_PERMISSIONS['Studio Director']
   },
   {
     id: 'tm-2',
@@ -224,7 +542,8 @@ const INITIAL_TEAM: TeamMember[] = [
     active: true,
     pin: '9012',
     password: '••••••••',
-    lastActive: '2 hours ago'
+    lastActive: '2 hours ago',
+    permissions: DEFAULT_ROLE_PERMISSIONS['Senior Curator']
   },
   {
     id: 'tm-3',
@@ -235,7 +554,8 @@ const INITIAL_TEAM: TeamMember[] = [
     active: true,
     pin: '3341',
     password: '••••••••',
-    lastActive: 'Yesterday'
+    lastActive: 'Yesterday',
+    permissions: DEFAULT_ROLE_PERMISSIONS['Atelier Manager']
   },
   {
     id: 'tm-4',
@@ -246,7 +566,8 @@ const INITIAL_TEAM: TeamMember[] = [
     active: false,
     pin: '7729',
     password: '••••••••',
-    lastActive: '5 days ago'
+    lastActive: '5 days ago',
+    permissions: DEFAULT_ROLE_PERMISSIONS['Logistics Lead']
   }
 ];
 
@@ -275,10 +596,158 @@ const INITIAL_PROMO_CONFIG: PromoPopupConfig = {
 };
 
 const INITIAL_ORDERS: Order[] = [
-  { id: 'ORD-9021', customerName: 'Camille Moreau', customerEmail: 'camille@atelier-arch.fr', total: 5400, currency: 'USD', status: 'Processing', date: '2026-09-09', itemsCount: 1 },
-  { id: 'ORD-9020', customerName: 'Henrik Lindqvist', customerEmail: 'henrik@nordicform.se', total: 4270, currency: 'USD', status: 'Fulfilled', date: '2026-09-07', itemsCount: 2 },
-  { id: 'ORD-9019', customerName: 'Sora Takahashi', customerEmail: 'sora@tokyo-space.jp', total: 950, currency: 'USD', status: 'Fulfilled', date: '2026-09-05', itemsCount: 1 },
-  { id: 'ORD-9018', customerName: 'Elena Rostova', customerEmail: 'elena@rostova.com', total: 3800, currency: 'USD', status: 'Pending', date: '2026-09-04', itemsCount: 1 }
+  {
+    id: 'ORD-9021',
+    receiptId: 'RCP-ORD-9021-X9K',
+    customerName: 'Camille Moreau',
+    customerEmail: 'camille@atelier-arch.fr',
+    total: 5400,
+    subtotal: 5400,
+    discount: 0,
+    currency: 'USD',
+    status: 'Processing',
+    date: '2026-09-09',
+    itemsCount: 1,
+    paymentMethod: 'Credit Card',
+    cardLast4: '4192',
+    shippingMethod: 'White-Glove Inspected Freight',
+    shippingFee: 0,
+    carrier: 'DHL Express White-Glove (Mosiac Flight)',
+    trackingNumber: 'MOS-FR-902198',
+    estimatedDelivery: 'Sep 16 – Sep 18, 2026',
+    destinationCity: 'Paris, France',
+    notes: 'Master loom tufting and velvet carving in progress at Nordic atelier.',
+    items: [
+      {
+        productId: 'prod-monolith-1',
+        productName: 'Travertine Monolith Sculpture Rug',
+        productSlug: 'monolith-travertine-sculpture-rug',
+        productImage: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=85',
+        sizeLabel: 'L',
+        dimensions: '250 × 250 cm',
+        colorName: 'Raw Travertine Cream',
+        unitPrice: 5400,
+        quantity: 1,
+        total: 5400
+      }
+    ]
+  },
+  {
+    id: 'ORD-9020',
+    receiptId: 'RCP-ORD-9020-L4B',
+    customerName: 'Henrik Lindqvist',
+    customerEmail: 'henrik@nordicform.se',
+    total: 4270,
+    subtotal: 4270,
+    discount: 0,
+    currency: 'USD',
+    status: 'Fulfilled',
+    date: '2026-09-07',
+    itemsCount: 2,
+    paymentMethod: 'Credit Card',
+    cardLast4: '8831',
+    shippingMethod: 'White-Glove Inspected Freight',
+    shippingFee: 0,
+    carrier: 'PostNord Signature Air',
+    trackingNumber: 'MOS-SE-772810',
+    estimatedDelivery: 'Delivered Sep 11, 2026',
+    destinationCity: 'Stockholm, Sweden',
+    items: [
+      {
+        productId: 'prod-curv-1',
+        productName: 'Curvilinear Dune Horizon Rug',
+        productSlug: 'curvilinear-dune-horizon-rug',
+        productImage: 'https://images.unsplash.com/photo-1579656381226-5fc0f0100c3b?auto=format&fit=crop&w=900&q=85',
+        sizeLabel: 'M',
+        dimensions: '200 × 200 cm',
+        colorName: 'Sand Ochre',
+        unitPrice: 2680,
+        quantity: 1,
+        total: 2680
+      },
+      {
+        productId: 'prod-vertex-1',
+        productName: 'Vertex Relief Wool Tapestry Rug',
+        productSlug: 'vertex-relief-wool-tapestry-rug',
+        productImage: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=900&q=85',
+        sizeLabel: 'S',
+        dimensions: '150 × 150 cm',
+        colorName: 'Bone Chalk',
+        unitPrice: 1590,
+        quantity: 1,
+        total: 1590
+      }
+    ]
+  },
+  {
+    id: 'ORD-9019',
+    receiptId: 'RCP-ORD-9019-J7T',
+    customerName: 'Sora Takahashi',
+    customerEmail: 'sora@tokyo-space.jp',
+    total: 950,
+    subtotal: 950,
+    discount: 0,
+    currency: 'USD',
+    status: 'Fulfilled',
+    date: '2026-09-05',
+    itemsCount: 1,
+    paymentMethod: 'PayPal',
+    shippingMethod: 'White-Glove Inspected Freight',
+    shippingFee: 0,
+    carrier: 'Yamato Atelier Logistics',
+    trackingNumber: 'MOS-JP-330198',
+    estimatedDelivery: 'Delivered Sep 09, 2026',
+    destinationCity: 'Tokyo, Japan',
+    items: [
+      {
+        productId: 'prod-obelisk-1',
+        productName: 'Radial Solstice High-Pile Rug',
+        productSlug: 'radial-solstice-high-pile-rug',
+        productImage: 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=85',
+        sizeLabel: 'S',
+        dimensions: '150 × 150 cm',
+        colorName: 'Natural Ivory',
+        unitPrice: 950,
+        quantity: 1,
+        total: 950
+      }
+    ]
+  },
+  {
+    id: 'ORD-9018',
+    receiptId: 'RCP-ORD-9018-R2W',
+    customerName: 'Elena Rostova',
+    customerEmail: 'elena@rostova.com',
+    total: 3800,
+    subtotal: 3800,
+    discount: 0,
+    currency: 'USD',
+    status: 'Pending',
+    date: '2026-09-04',
+    itemsCount: 1,
+    paymentMethod: 'Credit Card',
+    cardLast4: '1029',
+    shippingMethod: 'White-Glove Inspected Freight',
+    shippingFee: 0,
+    carrier: 'FedEx Custom Critical',
+    trackingNumber: 'MOS-US-449102',
+    estimatedDelivery: 'Sep 19 – Sep 22, 2026',
+    destinationCity: 'New York, USA',
+    items: [
+      {
+        productId: 'prod-strata-1',
+        productName: 'Strata Kinetic Contour Runner',
+        productSlug: 'strata-kinetic-contour-runner',
+        productImage: 'https://images.unsplash.com/photo-1615529182904-14819c35db37?auto=format&fit=crop&w=900&q=85',
+        sizeLabel: 'L',
+        dimensions: '250 × 250 cm',
+        colorName: 'Graphite Umber',
+        unitPrice: 3800,
+        quantity: 1,
+        total: 3800
+      }
+    ]
+  }
 ];
 
 const INITIAL_AUDIT_LOGS: AuditLog[] = [
@@ -319,16 +788,11 @@ const sanitizeProduct = (p: any): Product => {
     tags: Array.isArray(p.tags) ? p.tags : [],
     colours: Array.isArray(p.colours) && p.colours.length > 0
       ? p.colours.map((c: any, idx: number) => {
-          const defaultImg =
-            c.image ||
-            (idx === 0 ? p.cardImage : idx === 1 ? (p.hoverImage || p.galleryImages?.[1] || p.cardImage) : (p.galleryImages?.[idx] || p.cardImage)) ||
-            p.cardImage ||
-            '/images/uzu-slate-bronze.jpg';
           return {
             id: c.id || `c-${idx}-${Date.now()}`,
             name: c.name || `Variant ${idx + 1}`,
             hex: c.hex || '#111111',
-            image: defaultImg,
+            image: c.image !== undefined ? c.image : (idx === 0 ? p.cardImage : undefined),
             galleryImages: Array.isArray(c.galleryImages) ? c.galleryImages : undefined,
           };
         })
@@ -339,7 +803,8 @@ const sanitizeProduct = (p: any): Product => {
     sizes: rawSizes
       ? rawSizes.map((s: any, idx: number, arr: any[]) => ({
           ...s,
-          label: normalizeSizeLabel(s.label, idx, arr.length)
+          label: (typeof s.label === 'string' && s.label.trim()) ? s.label.trim() : normalizeSizeLabel(s.label, idx, arr.length),
+          price: typeof s.price === 'number' ? s.price : basePrice
         }))
       : [
           { id: 's1', label: 'S', width: 150, depth: 150, price: basePrice, weight: 19 },
@@ -348,23 +813,28 @@ const sanitizeProduct = (p: any): Product => {
           { id: 's4', label: 'XL', width: 300, depth: 300, price: Math.round(basePrice * 2.75), weight: 77 }
         ],
     fromPrice: basePrice,
+    costPrice: typeof p.costPrice === 'number' ? p.costPrice : Math.round(basePrice * 0.35),
     sku: p.sku || 'FORMA-001',
     stockOnHand: typeof p.stockOnHand === 'number' ? p.stockOnHand : 4,
     lowStockAlertAt: typeof p.lowStockAlertAt === 'number' ? p.lowStockAlertAt : 2,
+    fulfilment: p.fulfilment || p.availability || 'In stock',
     visible: p.visible !== false,
+    featured: Boolean(p.featured),
+    newArrival: Boolean(p.newArrival),
+    starred: Boolean(p.starred),
+    featuredOrder: typeof p.featuredOrder === 'number' ? p.featuredOrder : undefined,
+    seoTitle: p.seoTitle || '',
+    seoDescription: p.seoDescription || '',
   };
 };
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Live products
+  // Live products - synchronous init from persistent storage
   const [products, setProducts] = useState<Product[]>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEYS.LIVE_PRODUCTS);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map(sanitizeProduct);
-        }
+      const saved = getPersistentItemSync<Product[]>(STORAGE_KEYS.LIVE_PRODUCTS, []);
+      if (Array.isArray(saved) && saved.length > 0) {
+        return saved.map(sanitizeProduct);
       }
       return INITIAL_PRODUCTS;
     } catch {
@@ -375,12 +845,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Staged products (for the admin dashboard draft mode)
   const [stagedProducts, setStagedProducts] = useState<Product[]>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEYS.STAGED_PRODUCTS);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map(sanitizeProduct);
-        }
+      const saved = getPersistentItemSync<Product[]>(STORAGE_KEYS.STAGED_PRODUCTS, []);
+      if (Array.isArray(saved) && saved.length > 0) {
+        return saved.map(sanitizeProduct);
       }
       return INITIAL_PRODUCTS;
     } catch {
@@ -388,13 +855,83 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   });
 
-  // Navigation / views
-  const [currentView, setCurrentView] = useState<'store' | 'pdp' | 'variants' | 'cart' | 'policies' | 'dash'>('store');
-  const [currentProductSlug, setCurrentProductSlug] = useState<string | null>(null);
+  // Hydrate from IndexedDB in case localStorage was full or restricted
+  useEffect(() => {
+    let active = true;
+    async function hydrate() {
+      try {
+        const [idbLive, idbStaged] = await Promise.all([
+          getPersistentItem<Product[] | null>(STORAGE_KEYS.LIVE_PRODUCTS, null),
+          getPersistentItem<Product[] | null>(STORAGE_KEYS.STAGED_PRODUCTS, null)
+        ]);
+        if (!active) return;
+        if (Array.isArray(idbLive) && idbLive.length > 0) {
+          setProducts(idbLive.map(sanitizeProduct));
+        }
+        if (Array.isArray(idbStaged) && idbStaged.length > 0) {
+          setStagedProducts(idbStaged.map(sanitizeProduct));
+        }
+      } catch (err) {
+        console.warn('IndexedDB initial hydration skipped:', err);
+      }
+    }
+    hydrate();
+    return () => { active = false; };
+  }, []);
+
+  // Navigation / views - restored across page refreshes
+  const [currentView, setCurrentView] = useState<'store' | 'pdp' | 'variants' | 'cart' | 'policies' | 'dash' | 'receipt'>(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash;
+      if (hash.startsWith('#/dash') || window.location.pathname.endsWith('/dash')) return 'dash';
+      if (hash.startsWith('#/receipt/')) return 'receipt';
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get('receipt')) return 'receipt';
+      if (hash.startsWith('#/pdp/')) return 'pdp';
+      if (hash.startsWith('#/variants/')) return 'variants';
+      if (hash.startsWith('#/cart')) return 'cart';
+      if (hash.startsWith('#/policies')) return 'policies';
+      const savedView = sessionStorage.getItem('mosiac_current_view');
+      if (savedView && ['store', 'pdp', 'variants', 'cart', 'policies', 'dash', 'receipt'].includes(savedView)) {
+        return savedView as any;
+      }
+    }
+    return 'store';
+  });
+
+  const [currentReceiptOrderId, setCurrentReceiptOrderId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash;
+      if (hash.startsWith('#/receipt/')) {
+        return hash.replace('#/receipt/', '').trim();
+      }
+      const searchParams = new URLSearchParams(window.location.search);
+      const qReceipt = searchParams.get('receipt');
+      if (qReceipt) return qReceipt.trim();
+      return sessionStorage.getItem('mosiac_current_receipt_order_id') || 'ORD-9021';
+    }
+    return 'ORD-9021';
+  });
+
+  const [currentProductSlug, setCurrentProductSlug] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash;
+      if (hash.startsWith('#/pdp/')) return hash.replace('#/pdp/', '');
+      if (hash.startsWith('#/variants/')) return hash.replace('#/variants/', '');
+      return sessionStorage.getItem('mosiac_current_slug') || null;
+    }
+    return null;
+  });
+
   const [selectedColorVariant, setSelectedColorVariant] = useState<string | null>(null);
   const [gridDensity, setGridDensity] = useState<'dense' | 'normal'>('dense');
   const [activeAdminTab, setActiveAdminTab] = useState<string>('catalogue');
-  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [editingProductId, setEditingProductId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('mosiac_editing_product_id') || null;
+    }
+    return null;
+  });
 
   const toggleGridDensity = () => {
     setGridDensity(prev => (prev === 'dense' ? 'normal' : 'dense'));
@@ -519,15 +1056,281 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showToast('Studio policy updated');
   };
 
+  // Collections State
+  const [collections, setCollections] = useState<CollectionItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.COLLECTIONS);
+      return saved ? JSON.parse(saved) : INITIAL_COLLECTIONS;
+    } catch {
+      return INITIAL_COLLECTIONS;
+    }
+  });
+
+  const addCollection = (name: string, description: string, slug?: string) => {
+    const s = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const newCol: CollectionItem = {
+      id: 'col-' + Date.now().toString().slice(-4),
+      name,
+      slug: s,
+      description,
+      featured: false
+    };
+    setCollections(prev => {
+      const next = [...prev, newCol];
+      try {
+        localStorage.setItem(STORAGE_KEYS.COLLECTIONS, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    showToast(`Added collection: ${name}`);
+  };
+
+  const updateCollection = (id: string, updates: Partial<CollectionItem>) => {
+    setCollections(prev => {
+      const next = prev.map(c => (c.id === id ? { ...c, ...updates } : c));
+      try {
+        localStorage.setItem(STORAGE_KEYS.COLLECTIONS, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    showToast('Collection updated');
+  };
+
+  const deleteCollection = (id: string) => {
+    setCollections(prev => {
+      const next = prev.filter(c => c.id !== id);
+      try {
+        localStorage.setItem(STORAGE_KEYS.COLLECTIONS, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    showToast('Collection removed');
+  };
+
+  // Shapes State
+  const [shapes, setShapes] = useState<ShapeItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.SHAPES);
+      return saved ? JSON.parse(saved) : INITIAL_SHAPES;
+    } catch {
+      return INITIAL_SHAPES;
+    }
+  });
+
+  const addShape = (name: string, description: string, aspectHint?: string, placementGuidance?: string) => {
+    const s = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const newShape: ShapeItem = {
+      id: 'shp-' + Date.now().toString().slice(-4),
+      name,
+      slug: s,
+      description,
+      aspectHint,
+      placementGuidance
+    };
+    setShapes(prev => {
+      const next = [...prev, newShape];
+      try {
+        localStorage.setItem(STORAGE_KEYS.SHAPES, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    showToast(`Added shape: ${name}`);
+  };
+
+  const updateShape = (id: string, updates: Partial<ShapeItem>) => {
+    setShapes(prev => {
+      const next = prev.map(s => (s.id === id ? { ...s, ...updates } : s));
+      try {
+        localStorage.setItem(STORAGE_KEYS.SHAPES, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    showToast('Shape updated');
+  };
+
+  const deleteShape = (id: string) => {
+    setShapes(prev => {
+      const next = prev.filter(s => s.id !== id);
+      try {
+        localStorage.setItem(STORAGE_KEYS.SHAPES, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    showToast('Shape removed');
+  };
+
+  // Styles State
+  const [styles, setStyles] = useState<StyleItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.STYLES);
+      return saved ? JSON.parse(saved) : INITIAL_STYLES;
+    } catch {
+      return INITIAL_STYLES;
+    }
+  });
+
+  const addStyle = (name: string, densityMultiplier: number, techniqueDescription: string, pileHeightMm?: number) => {
+    const s = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const newStyle: StyleItem = {
+      id: 'sty-' + Date.now().toString().slice(-4),
+      name,
+      slug: s,
+      densityMultiplier,
+      techniqueDescription,
+      pileHeightMm
+    };
+    setStyles(prev => {
+      const next = [...prev, newStyle];
+      try {
+        localStorage.setItem(STORAGE_KEYS.STYLES, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    showToast(`Added style: ${name}`);
+  };
+
+  const updateStyle = (id: string, updates: Partial<StyleItem>) => {
+    setStyles(prev => {
+      const next = prev.map(st => (st.id === id ? { ...st, ...updates } : st));
+      try {
+        localStorage.setItem(STORAGE_KEYS.STYLES, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    showToast('Style updated');
+  };
+
+  const deleteStyle = (id: string) => {
+    setStyles(prev => {
+      const next = prev.filter(st => st.id !== id);
+      try {
+        localStorage.setItem(STORAGE_KEYS.STYLES, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    showToast('Style removed');
+  };
+
+  // Weight Formula State
+  const [weightFormula, setWeightFormula] = useState<WeightFormulaConfig>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.WEIGHT_FORMULA);
+      return saved ? JSON.parse(saved) : INITIAL_WEIGHT_FORMULA;
+    } catch {
+      return INITIAL_WEIGHT_FORMULA;
+    }
+  });
+
+  const updateWeightFormula = (updates: Partial<WeightFormulaConfig>) => {
+    setWeightFormula(prev => {
+      const next = { ...prev, ...updates };
+      try {
+        localStorage.setItem(STORAGE_KEYS.WEIGHT_FORMULA, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    showToast('Weight formula parameters updated');
+  };
+
+  const calculateWeight = (widthCm: number, depthCm: number, styleName?: string, materialName?: string): number => {
+    const areaM2 = (widthCm / 100) * (depthCm / 100);
+    const styleMult = (styleName && weightFormula.styleMultipliers[styleName]) || 1.0;
+    const materialMult = (materialName && weightFormula.materialMultipliers[materialName]) || 1.0;
+    const weightKg = (areaM2 * weightFormula.densityKgPerM2 * styleMult * materialMult) + weightFormula.basePackagingKg;
+    if (weightFormula.unit === 'lbs') {
+      return Math.round(weightKg * 2.20462 * 10) / 10;
+    }
+    return Math.round(weightKg * 10) / 10;
+  };
+
+  const recalculateAllProductWeights = () => {
+    const updateSizes = (prods: Product[]) =>
+      prods.map(p => ({
+        ...p,
+        sizes: (p.sizes || []).map(s => ({
+          ...s,
+          weight: calculateWeight(s.width, s.depth, p.shape, p.material)
+        }))
+      }));
+
+    setProducts(prev => {
+      const next = updateSizes(prev);
+      setPersistentItem(STORAGE_KEYS.LIVE_PRODUCTS, next);
+      return next;
+    });
+
+    setStagedProducts(prev => {
+      const next = updateSizes(prev);
+      setPersistentItem(STORAGE_KEYS.STAGED_PRODUCTS, next);
+      return next;
+    });
+
+    showToast(`Recalculated weights across all catalogue sizes (${weightFormula.unit})`);
+  };
+
+  // Sizing Guide Configuration State
+  const [sizingGuideConfig, setSizingGuideConfig] = useState<SizingGuideConfig>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.SIZING_GUIDE);
+      return saved ? JSON.parse(saved) : INITIAL_SIZING_GUIDE;
+    } catch {
+      return INITIAL_SIZING_GUIDE;
+    }
+  });
+
+  const updateSizingGuideConfig = (updates: Partial<SizingGuideConfig>) => {
+    setSizingGuideConfig(prev => {
+      const next = { ...prev, ...updates };
+      try {
+        localStorage.setItem(STORAGE_KEYS.SIZING_GUIDE, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    showToast('Sizing guide configuration saved');
+  };
+
   // Studio Team Members (with accordion credentials in Dash)
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.TEAM);
-      return saved ? JSON.parse(saved) : INITIAL_TEAM;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.map((m: any) => ({
+            ...m,
+            permissions: m.permissions || DEFAULT_ROLE_PERMISSIONS[m.role] || DEFAULT_ROLE_PERMISSIONS['Custom Role']
+          }));
+        }
+      }
+      return INITIAL_TEAM;
     } catch {
       return INITIAL_TEAM;
     }
   });
+
+  // Active persona/member selected for permission simulation & session
+  const [activeTeamMemberId, setActiveTeamMemberId] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.ACTIVE_TM_ID);
+      return saved || 'tm-1';
+    } catch {
+      return 'tm-1';
+    }
+  });
+
+  const handleSetActiveTeamMemberId = (id: string) => {
+    setActiveTeamMemberId(id);
+    try {
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_TM_ID, id);
+    } catch {}
+    const member = teamMembers.find(m => m.id === id);
+    if (member) {
+      showToast(`Switched active view to: ${member.name} (${member.role})`);
+    }
+  };
+
+  const activeTeamMember = teamMembers.find(m => m.id === activeTeamMemberId) || teamMembers[0] || INITIAL_TEAM[0];
+  const currentPermissions = activeTeamMember?.permissions || DEFAULT_ROLE_PERMISSIONS[activeTeamMember?.role || 'Studio Director'] || DEFAULT_ROLE_PERMISSIONS['Studio Director'];
 
   const toggleTeamMemberActive = (id: string) => {
     setTeamMembers(prev => {
@@ -552,10 +1355,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addTeamMember = (member: Omit<TeamMember, 'id' | 'lastActive'>) => {
+    const rolePermissions = member.permissions || DEFAULT_ROLE_PERMISSIONS[member.role] || DEFAULT_ROLE_PERMISSIONS['Custom Role'];
     const newMember: TeamMember = {
       ...member,
       id: 'tm-' + Date.now().toString().slice(-4),
-      lastActive: 'Never'
+      lastActive: 'Never',
+      permissions: rolePermissions
     };
     const next = [...teamMembers, newMember];
     setTeamMembers(next);
@@ -563,6 +1368,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.setItem(STORAGE_KEYS.TEAM, JSON.stringify(next));
     } catch {}
     showToast(`Added ${member.name} to team`);
+  };
+
+  const deleteTeamMember = (id: string) => {
+    setTeamMembers(prev => {
+      const next = prev.filter(m => m.id !== id);
+      try {
+        localStorage.setItem(STORAGE_KEYS.TEAM, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    showToast('Team member removed');
   };
 
   // User Profile
@@ -681,8 +1497,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Staged vs Live difference detection
   const hasUnpublishedChanges = JSON.stringify(products) !== JSON.stringify(stagedProducts);
 
-  // Orders and Audit Logs
-  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
+  // Orders and Audit Logs with persistent storage
+  const [orders, setOrders] = useState<Order[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.ORDERS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_ORDERS;
+  });
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(INITIAL_AUDIT_LOGS);
   const [notifications] = useState<string[]>([
     'High traffic alert: PDP views up 42% on Monolith Console',
@@ -690,17 +1515,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     'New trade inquiry received from Architectural Digest Studio'
   ]);
 
-  // Sync to localStorage
+  // Sync orders to persistent storage
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEYS.LIVE_PRODUCTS, JSON.stringify(products));
+      localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
     } catch {}
+  }, [orders]);
+
+  // Listen for hash changes for #/receipt/:orderId
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash.startsWith('#/receipt/')) {
+        const oId = hash.replace('#/receipt/', '').trim();
+        if (oId) {
+          setCurrentReceiptOrderId(oId);
+          setCurrentView('receipt');
+        }
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Sync to persistent storage
+  useEffect(() => {
+    setPersistentItem(STORAGE_KEYS.LIVE_PRODUCTS, products);
   }, [products]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.STAGED_PRODUCTS, JSON.stringify(stagedProducts));
-    } catch {}
+    setPersistentItem(STORAGE_KEYS.STAGED_PRODUCTS, stagedProducts);
   }, [stagedProducts]);
 
   useEffect(() => {
@@ -708,6 +1552,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
     } catch {}
   }, [cart]);
+
+  // Sync navigation view, slug, and editing product to sessionStorage
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('mosiac_current_view', currentView);
+      if (currentProductSlug) {
+        sessionStorage.setItem('mosiac_current_slug', currentProductSlug);
+      }
+      if (editingProductId) {
+        sessionStorage.setItem('mosiac_editing_product_id', editingProductId);
+      } else {
+        sessionStorage.removeItem('mosiac_editing_product_id');
+      }
+    } catch {}
+  }, [currentView, currentProductSlug, editingProductId]);
 
   // Price formatter
   const formatPrice = (usdAmount: number): string => {
@@ -726,6 +1585,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCurrentView('store');
     setCurrentProductSlug(null);
     setEditingProductId(null);
+    try {
+      sessionStorage.setItem('mosiac_current_view', 'store');
+      sessionStorage.removeItem('mosiac_editing_product_id');
+      if (window.location.hash) window.location.hash = '';
+    } catch {}
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -736,6 +1600,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     setCurrentView('pdp');
     setEditingProductId(null);
+    try {
+      sessionStorage.setItem('mosiac_current_view', 'pdp');
+      sessionStorage.setItem('mosiac_current_slug', slug);
+      sessionStorage.removeItem('mosiac_editing_product_id');
+      window.location.hash = `#/pdp/${slug}`;
+    } catch {}
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -743,23 +1613,65 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCurrentProductSlug(slug);
     setCurrentView('variants');
     setEditingProductId(null);
+    try {
+      sessionStorage.setItem('mosiac_current_view', 'variants');
+      sessionStorage.setItem('mosiac_current_slug', slug);
+      sessionStorage.removeItem('mosiac_editing_product_id');
+      window.location.hash = `#/variants/${slug}`;
+    } catch {}
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const navigateToCart = () => {
     setCurrentView('cart');
+    try {
+      sessionStorage.setItem('mosiac_current_view', 'cart');
+      window.location.hash = '#/cart';
+    } catch {}
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const navigateToPolicies = () => {
     setCurrentView('policies');
+    try {
+      sessionStorage.setItem('mosiac_current_view', 'policies');
+      window.location.hash = '#/policies';
+    } catch {}
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const navigateToDash = (tab?: string) => {
     setCurrentView('dash');
     if (tab) setActiveAdminTab(tab);
+    try {
+      sessionStorage.setItem('mosiac_current_view', 'dash');
+      window.location.hash = '#/dash';
+    } catch {}
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const navigateToReceipt = (orderId: string) => {
+    if (!orderId) return;
+    const cleanId = orderId.trim();
+    setCurrentReceiptOrderId(cleanId);
+    setCurrentView('receipt');
+    try {
+      sessionStorage.setItem('mosiac_current_view', 'receipt');
+      sessionStorage.setItem('mosiac_current_receipt_order_id', cleanId);
+      window.location.hash = `#/receipt/${cleanId}`;
+    } catch {}
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const getOrderById = (orderId: string): Order | undefined => {
+    if (!orderId) return undefined;
+    const clean = orderId.trim().toLowerCase();
+    return orders.find(
+      o =>
+        o.id.toLowerCase() === clean ||
+        o.receiptId?.toLowerCase() === clean ||
+        o.id.toLowerCase().replace('ord-', '') === clean.replace('ord-', '')
+    );
   };
 
   // Cart operations
@@ -814,23 +1726,73 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     customerEmail: string;
     paymentMethod: string;
     cardLast4?: string;
+    destinationCity?: string;
   }): Order => {
     const newOrderId = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
+    const receiptSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const receiptId = `RCP-${newOrderId}-${receiptSuffix}`;
     const promoDiscountUSD = appliedPromo ? (cartSubtotalUSD * appliedPromo.discountPercent) / 100 : 0;
     const finalTotal = Math.max(0, cartSubtotalUSD - promoDiscountUSD);
 
+    // Map cart items into full OrderItemSummary with high-res pictures, dimensions, and styling
+    const orderItems: OrderItemSummary[] = cart.map(item => {
+      const prod = products.find(p => p.id === item.productId);
+      const size = prod?.sizes.find(s => s.id === item.sizeId);
+      const color = prod?.colours.find(c => c.name === item.colorName);
+      const unitPrice = size ? size.price : (prod?.fromPrice || 1850);
+      const dimensions = size ? `${size.width} × ${size.depth} cm` : '200 × 200 cm';
+      const productImage = color?.image || prod?.cardImage || prod?.galleryImages?.[0] || 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=85';
+
+      return {
+        productId: item.productId,
+        productName: prod ? prod.name : 'Mosiac Architectural Textile',
+        productSlug: prod ? prod.slug : undefined,
+        productImage,
+        sizeLabel: size ? size.label : 'M',
+        dimensions,
+        colorName: item.colorName || 'Natural Ivory',
+        colorHex: color?.hex,
+        unitPrice,
+        quantity: item.quantity,
+        total: unitPrice * item.quantity
+      };
+    });
+
+    const trackingNum = 'MOS-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+
     const newOrder: Order = {
       id: newOrderId,
+      receiptId,
       customerName: details.customerName || 'Studio Client',
       customerEmail: details.customerEmail || 'client@studio.com',
       total: finalTotal,
+      subtotal: cartSubtotalUSD,
+      discount: promoDiscountUSD,
+      promoCode: appliedPromo?.code,
       currency: currency.code,
       status: 'Processing',
       date: new Date().toISOString().split('T')[0],
-      itemsCount: cartCount
+      itemsCount: cartCount,
+      items: orderItems,
+      paymentMethod: details.paymentMethod || 'Credit Card',
+      cardLast4: details.cardLast4 || '2153',
+      shippingMethod: 'White-Glove Inspected Freight',
+      shippingFee: 0,
+      carrier: 'Mosiac White-Glove Logistics (Direct Flight)',
+      trackingNumber: trackingNum,
+      estimatedDelivery: '3–5 Business Days',
+      destinationCity: details.destinationCity || 'Private Residence',
+      notes: 'Commissioned from Nordic master atelier. High-relief wool hand-sheared and inspected.'
     };
 
-    setOrders(prev => [newOrder, ...prev]);
+    setOrders(prev => {
+      const updated = [newOrder, ...prev];
+      try {
+        localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
     setAuditLogs(prev => [
       {
         id: 'log-' + Date.now(),
@@ -841,6 +1803,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       },
       ...prev
     ]);
+
     clearCart();
     setAppliedPromo(null);
     return newOrder;
@@ -881,7 +1844,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     id: string,
     field: 'visible' | 'soldOut' | 'featured' | 'newArrival' | 'starred'
   ) => {
-    setStagedProducts(prev =>
+    const updateFn = (prev: Product[]) =>
       prev.map(p => {
         if (p.id !== id) return p;
         if (field === 'visible') {
@@ -889,7 +1852,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
         if (field === 'soldOut') {
           const isSoldOut = p.availability === 'Sold out';
-          const nextAvail = isSoldOut ? 'In stock' : 'Sold out';
+          const nextAvail: 'In stock' | 'Sold out' = isSoldOut ? 'In stock' : 'Sold out';
           return { ...p, availability: nextAvail, fulfilment: nextAvail };
         }
         if (field === 'featured') {
@@ -902,8 +1865,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return { ...p, starred: !p.starred };
         }
         return p;
-      })
-    );
+      });
+
+    setStagedProducts(prev => {
+      const next = updateFn(prev);
+      setPersistentItem(STORAGE_KEYS.STAGED_PRODUCTS, next);
+      return next;
+    });
+
+    setProducts(prev => {
+      const next = updateFn(prev);
+      setPersistentItem(STORAGE_KEYS.LIVE_PRODUCTS, next);
+      return next;
+    });
 
     // Also record an audit log
     const targetProd = stagedProducts.find(p => p.id === id);
@@ -921,21 +1895,40 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  // Save product draft from the edit view
-  const saveProductDraft = (updatedProduct: Product) => {
+  // Save product draft / publish directly from the edit view
+  const saveProductDraft = (updatedProduct: Product, publishLive: boolean = true) => {
+    const cleanProduct = sanitizeProduct(updatedProduct);
+
     setStagedProducts(prev => {
-      const exists = prev.some(p => p.id === updatedProduct.id);
-      if (exists) {
-        return prev.map(p => (p.id === updatedProduct.id ? updatedProduct : p));
-      }
-      return [updatedProduct, ...prev];
+      const exists = prev.some(p => p.id === cleanProduct.id);
+      const next = exists
+        ? prev.map(p => (p.id === cleanProduct.id ? cleanProduct : p))
+        : [cleanProduct, ...prev];
+      setPersistentItem(STORAGE_KEYS.STAGED_PRODUCTS, next);
+      return next;
     });
+
+    if (publishLive) {
+      setProducts(prev => {
+        const exists = prev.some(p => p.id === cleanProduct.id);
+        const next = exists
+          ? prev.map(p => (p.id === cleanProduct.id ? cleanProduct : p))
+          : [cleanProduct, ...prev];
+        setPersistentItem(STORAGE_KEYS.LIVE_PRODUCTS, next);
+        return next;
+      });
+    }
+
+    try {
+      sessionStorage.removeItem(`mosiac_edit_draft_${cleanProduct.id}`);
+      sessionStorage.removeItem('mosiac_editing_product_id');
+    } catch {}
 
     setAuditLogs(prev => [
       {
         id: 'log-' + Date.now(),
-        action: 'Updated product specifications',
-        target: updatedProduct.name,
+        action: publishLive ? 'Published product specifications' : 'Updated product specifications',
+        target: cleanProduct.name,
         user: 'Admin (Studio)',
         timestamp: 'Just now'
       },
@@ -943,13 +1936,27 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     ]);
 
     setEditingProductId(null);
-    showToast(`Saved changes for ${updatedProduct.name}`);
+    showToast(publishLive ? `Published changes for ${cleanProduct.name}` : `Saved changes for ${cleanProduct.name}`);
   };
 
   // Delete product
   const deleteProduct = (id: string) => {
-    const prod = stagedProducts.find(p => p.id === id);
-    setStagedProducts(prev => prev.filter(p => p.id !== id));
+    const prod = stagedProducts.find(p => p.id === id) || products.find(p => p.id === id);
+    setStagedProducts(prev => {
+      const next = prev.filter(p => p.id !== id);
+      setPersistentItem(STORAGE_KEYS.STAGED_PRODUCTS, next);
+      return next;
+    });
+    setProducts(prev => {
+      const next = prev.filter(p => p.id !== id);
+      setPersistentItem(STORAGE_KEYS.LIVE_PRODUCTS, next);
+      return next;
+    });
+
+    try {
+      sessionStorage.removeItem(`mosiac_edit_draft_${id}`);
+    } catch {}
+
     if (prod) {
       setAuditLogs(prev => [
         {
@@ -1006,8 +2013,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       seoDescription: 'Handcrafted architectural sculpture from FORMA Studio.'
     };
 
-    setStagedProducts(prev => [newProduct, ...prev]);
+    setStagedProducts(prev => {
+      const next = [newProduct, ...prev];
+      setPersistentItem(STORAGE_KEYS.STAGED_PRODUCTS, next);
+      return next;
+    });
+    setProducts(prev => {
+      const next = [newProduct, ...prev];
+      setPersistentItem(STORAGE_KEYS.LIVE_PRODUCTS, next);
+      return next;
+    });
     setEditingProductId(newId);
+    try {
+      sessionStorage.setItem('mosiac_editing_product_id', newId);
+    } catch {}
     showToast('New draft product created');
     return newId;
   };
@@ -1015,6 +2034,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Publish staged changes live to the storefront
   const publishStagedChanges = () => {
     setProducts([...stagedProducts]);
+    setPersistentItem(STORAGE_KEYS.LIVE_PRODUCTS, stagedProducts);
     setAuditLogs(prev => [
       {
         id: 'log-' + Date.now(),
@@ -1052,6 +2072,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         navigateToCart,
         navigateToPolicies,
         navigateToDash,
+        currentReceiptOrderId,
+        navigateToReceipt,
+        getOrderById,
         activeAdminTab,
         setActiveAdminTab,
         editingProductId,
@@ -1103,11 +2126,41 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         policies,
         updatePolicySection,
 
-        // Team
+        // Store Settings: Collections
+        collections,
+        addCollection,
+        updateCollection,
+        deleteCollection,
+
+        // Store Settings: Shapes & Styles
+        shapes,
+        addShape,
+        updateShape,
+        deleteShape,
+        styles,
+        addStyle,
+        updateStyle,
+        deleteStyle,
+
+        // Store Settings: Weight Formula
+        weightFormula,
+        updateWeightFormula,
+        recalculateAllProductWeights,
+        calculateWeight,
+
+        // Store Settings: Sizing Guide Configuration
+        sizingGuideConfig,
+        updateSizingGuideConfig,
+
+        // Team & Granular Permissions
         teamMembers,
         toggleTeamMemberActive,
         updateTeamMember,
         addTeamMember,
+        deleteTeamMember,
+        activeTeamMember,
+        setActiveTeamMemberId: handleSetActiveTeamMemberId,
+        currentPermissions,
 
         // Profile
         userProfile,

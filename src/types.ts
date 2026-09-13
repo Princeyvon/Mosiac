@@ -63,6 +63,20 @@ export interface Currency {
   popular?: boolean;
 }
 
+export interface OrderItemSummary {
+  productId: string;
+  productName: string;
+  productSlug?: string;
+  productImage?: string;
+  sizeLabel: string;
+  dimensions?: string;
+  colorName: string;
+  colorHex?: string;
+  unitPrice: number;
+  quantity: number;
+  total: number;
+}
+
 export interface Order {
   id: string;
   customerName: string;
@@ -72,6 +86,21 @@ export interface Order {
   status: 'Fulfilled' | 'Processing' | 'Pending' | 'Dispatched';
   date: string;
   itemsCount: number;
+  receiptId?: string;
+  items?: OrderItemSummary[];
+  paymentMethod?: string;
+  cardLast4?: string;
+  subtotal?: number;
+  discount?: number;
+  promoCode?: string;
+  shippingFee?: number;
+  shippingMethod?: string;
+  trackingNumber?: string;
+  carrier?: string;
+  estimatedDelivery?: string;
+  destinationCity?: string;
+  destinationCountry?: string;
+  notes?: string;
 }
 
 export interface AuditLog {
@@ -108,17 +137,89 @@ export interface PolicySection {
   lastUpdated: string;
 }
 
+export interface CollectionItem {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  featured?: boolean;
+}
+
+export interface ShapeItem {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  aspectHint?: string;
+  placementGuidance?: string;
+}
+
+export interface StyleItem {
+  id: string;
+  name: string;
+  slug: string;
+  pileHeightMm?: number;
+  densityMultiplier: number; // e.g. 1.0 standard, 1.25 plush, 0.85 low loop
+  techniqueDescription: string;
+}
+
+export interface WeightFormulaConfig {
+  unit: 'kg' | 'lbs';
+  densityKgPerM2: number; // default ~3.4 kg/m² for tufted New Zealand wool
+  basePackagingKg: number; // default packaging weight e.g. 0.8 kg
+  materialMultipliers: Record<string, number>; // e.g. 'Pure Wool': 1.0, 'Wool & Silk': 1.15
+  styleMultipliers: Record<string, number>; // e.g. 'High-Relief': 1.25
+}
+
+export interface SizingGuideSizeRow {
+  id: string;
+  size: string; // 'S', 'M', 'L', 'XL', etc.
+  name: string; // 'Small / Accent'
+  widthCm: number;
+  depthCm: number;
+  idealFor: string;
+}
+
+export interface SizingGuideConfig {
+  eyebrow: string;
+  headline: string;
+  description: string;
+  livingRoomTip: string;
+  bedroomTip: string;
+  diningRoomTip: string;
+  shapeSpecificTips: Record<string, string>; // keyed by shape name (e.g. 'Organic', 'Circular', 'Radial', etc.)
+  sizeRows: SizingGuideSizeRow[];
+  customInquiryText: string;
+  customInquiryUrl: string;
+}
+
+export interface TeamPermissions {
+  canViewDashboard: boolean;
+  canEditProducts: boolean;
+  canCreateProducts: boolean;
+  canPublishLive: boolean;
+  canDeleteProducts: boolean;
+  canManageOrders: boolean;
+  canManageClientele: boolean;
+  canManageDiscounts: boolean;
+  canManageStoreSettings: boolean; // collections, shapes, styles, weight formula, sizing guide
+  canManagePolicies: boolean;
+  canManageTeam: boolean;
+  canViewFinancials: boolean; // cost prices, margins, total revenue
+}
+
 export interface TeamMember {
   id: string;
   name: string;
   username: string;
   email: string;
-  role: 'Studio Director' | 'Senior Curator' | 'Atelier Manager' | 'Logistics Lead';
+  role: 'Studio Director' | 'Senior Curator' | 'Atelier Manager' | 'Logistics Lead' | 'Custom Role';
   active: boolean;
   pin: string;
   password?: string;
   avatar?: string;
   lastActive: string;
+  permissions: TeamPermissions;
 }
 
 export interface UserProfile {

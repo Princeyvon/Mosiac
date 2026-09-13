@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, Ruler, Check, Sparkles, Home, Bed, Coffee, ArrowUpRight } from 'lucide-react';
+import { useStore } from '../../context/StoreContext';
+import { X, Ruler, Check, Sparkles, Home, Bed, UtensilsCrossed, ArrowUpRight, Scale, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface SizingGuideModalProps {
@@ -7,65 +8,45 @@ interface SizingGuideModalProps {
   onClose: () => void;
   productName?: string;
   productShape?: string;
+  productStyle?: string;
+  productMaterial?: string;
 }
 
 export const SizingGuideModal: React.FC<SizingGuideModalProps> = ({
   isOpen,
   onClose,
   productName = 'Atelier Rug',
-  productShape = 'Circular / Standard',
+  productShape = 'Circular',
+  productStyle = 'High-Relief Hand Carved',
+  productMaterial = '100% Hand-Tufted New Zealand Wool',
 }) => {
+  const { sizingGuideConfig, shapes, styles, calculateWeight, weightFormula } = useStore();
   const [unit, setUnit] = useState<'metric' | 'imperial'>('metric');
 
-  // Standard Mosiac Rug Size Specifications
-  const sizingData = [
-    {
-      size: 'S',
-      name: 'Small / Accent',
-      metricCm: '150 × 150 cm',
-      imperialFt: `4'11" × 4'11" (approx. 5' × 5')`,
-      areaMetric: '2.25 m²',
-      areaImperial: '24.2 sq ft',
-      weight: 'approx. 10 – 12 kg',
-      idealFor: 'Entryways, intimate reading nooks, bedside accent, executive desk vignettes',
-      icon: Coffee,
-    },
-    {
-      size: 'M',
-      name: 'Medium / Studio',
-      metricCm: '200 × 200 cm',
-      imperialFt: `6'7" × 6'7" (approx. 6.5' × 6.5')`,
-      areaMetric: '4.00 m²',
-      areaImperial: '43.1 sq ft',
-      weight: 'approx. 18 – 22 kg',
-      idealFor: 'Two-to-three seater sofas, apartment living rooms, queen bed footings, home offices',
-      icon: Home,
-    },
-    {
-      size: 'L',
-      name: 'Large / Living',
-      metricCm: '250 × 250 cm',
-      imperialFt: `8'2" × 8'2" (approx. 8' × 8')`,
-      areaMetric: '6.25 m²',
-      areaImperial: '67.3 sq ft',
-      weight: 'approx. 28 – 32 kg',
-      idealFor: 'Full living room conversational groupings (front sofa legs anchored), 6-seat dining areas',
-      icon: Home,
-    },
-    {
-      size: 'XL',
-      name: 'Extra Large / Grand',
-      metricCm: '300 × 300 cm',
-      imperialFt: `9'10" × 9'10" (approx. 10' × 10')`,
-      areaMetric: '9.00 m²',
-      areaImperial: '96.9 sq ft',
-      weight: 'approx. 40 – 45 kg',
-      idealFor: 'Grand open-plan living salons, master suites anchoring king beds with nightstands, 8–10 seat dining tables',
-      icon: Bed,
-    },
-  ];
-
   if (!isOpen) return null;
+
+  // Find shape-specific guidance if available
+  const matchedShape = shapes.find(
+    s => s.name.toLowerCase() === productShape.toLowerCase() || s.slug === productShape.toLowerCase()
+  );
+
+  const shapeTip =
+    sizingGuideConfig.shapeSpecificTips[productShape] ||
+    matchedShape?.placementGuidance ||
+    matchedShape?.description;
+
+  const cmToFtIn = (cm: number) => {
+    const totalInches = cm / 2.54;
+    const feet = Math.floor(totalInches / 12);
+    const inches = Math.round(totalInches % 12);
+    return `${feet}'${inches}"`;
+  };
+
+  const cmToSqFt = (widthCm: number, depthCm: number) => {
+    const areaM2 = (widthCm / 100) * (depthCm / 100);
+    const sqFt = areaM2 * 10.7639;
+    return `${sqFt.toFixed(1)} sq ft`;
+  };
 
   return (
     <AnimatePresence>
@@ -99,14 +80,31 @@ export const SizingGuideModal: React.FC<SizingGuideModalProps> = ({
           <div className="space-y-1.5 pr-10 mb-6">
             <div className="inline-flex items-center gap-1.5 text-neutral-500 font-mono text-[10px] uppercase tracking-[0.2em]">
               <Ruler className="w-3.5 h-3.5" />
-              <span>Studio Sizing & Placement Guide</span>
+              <span>{sizingGuideConfig.eyebrow || 'Studio Sizing & Placement Guide'}</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-serif uppercase tracking-tight text-neutral-900">
-              Scale & Dimensions Reference
+              {sizingGuideConfig.headline || 'Scale & Dimensions Reference'}
             </h2>
             <p className="text-xs text-neutral-500 font-light leading-relaxed">
-              Every Mosiac piece is hand-tufted from pure New Zealand wool and luster-spun bamboo silk. Use this architectural guide to select the ideal scale for your interior.
+              {sizingGuideConfig.description ||
+                'Every Mosiac piece is hand-tufted from pure New Zealand virgin wool and luster-spun botanical bamboo silk. Use this architectural guide to select the ideal scale for your interior.'}
             </p>
+
+            {/* Target Rug Pill */}
+            <div className="pt-2 flex flex-wrap items-center gap-2">
+              <span className="text-[10px] uppercase font-mono text-neutral-400">Inspecting:</span>
+              <span className="px-2.5 py-0.5 rounded-full bg-neutral-100 border border-neutral-200 text-[11px] font-semibold text-neutral-800">
+                {productName}
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-neutral-100 text-[10px] font-mono text-neutral-600">
+                Shape: {productShape}
+              </span>
+              {productStyle && (
+                <span className="px-2 py-0.5 rounded-full bg-neutral-100 text-[10px] font-mono text-neutral-600">
+                  Style: {productStyle}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Unit Switcher */}
@@ -122,7 +120,7 @@ export const SizingGuideModal: React.FC<SizingGuideModalProps> = ({
                   unit === 'metric' ? 'bg-white text-black font-semibold shadow-2xs' : 'text-neutral-500 hover:text-black'
                 }`}
               >
-                Metric (cm / m²)
+                Metric (cm / m² / kg)
               </button>
               <button
                 type="button"
@@ -131,58 +129,83 @@ export const SizingGuideModal: React.FC<SizingGuideModalProps> = ({
                   unit === 'imperial' ? 'bg-white text-black font-semibold shadow-2xs' : 'text-neutral-500 hover:text-black'
                 }`}
               >
-                Imperial (ft / in)
+                Imperial (ft / in / lbs)
               </button>
             </div>
           </div>
 
-          {/* Designed Comparison Table */}
+          {/* Sizing Comparison Table */}
           <div className="overflow-x-auto -mx-2 sm:mx-0">
-            <table className="w-full text-left border-collapse min-w-[540px]">
+            <table className="w-full text-left border-collapse min-w-[560px]">
               <thead>
                 <tr className="border-b border-neutral-200 text-neutral-400 font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.16em]">
                   <th className="py-2.5 px-3">Size</th>
                   <th className="py-2.5 px-3">Dimensions</th>
                   <th className="py-2.5 px-3">Surface Area</th>
-                  <th className="py-2.5 px-3">Estimated Weight</th>
+                  <th className="py-2.5 px-3">Dynamic Weight</th>
                   <th className="py-2.5 px-3">Best Room Placement</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 text-xs">
-                {sizingData.map(item => (
-                  <tr key={item.size} className="hover:bg-neutral-50/70 transition-colors">
-                    <td className="py-3.5 px-3 font-mono font-bold text-sm text-neutral-900">
-                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-neutral-900 text-white font-mono text-xs">
-                        {item.size}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-3 font-mono font-medium text-neutral-800">
-                      {unit === 'metric' ? item.metricCm : item.imperialFt}
-                    </td>
-                    <td className="py-3.5 px-3 font-mono text-neutral-600">
-                      {unit === 'metric' ? item.areaMetric : item.areaImperial}
-                    </td>
-                    <td className="py-3.5 px-3 font-mono text-neutral-500 text-[11px]">
-                      {item.weight}
-                    </td>
-                    <td className="py-3.5 px-3 text-neutral-600 text-[11px] font-light leading-snug max-w-xs">
-                      {item.idealFor}
-                    </td>
-                  </tr>
-                ))}
+                {sizingGuideConfig.sizeRows.map(item => {
+                  const areaM2 = ((item.widthCm / 100) * (item.depthCm / 100)).toFixed(2);
+                  const dynamicWeight = calculateWeight(item.widthCm, item.depthCm, productStyle, productMaterial);
+                  const weightDisplay =
+                    unit === 'metric'
+                      ? `~ ${dynamicWeight} kg`
+                      : `~ ${Math.round(dynamicWeight * (weightFormula.unit === 'kg' ? 2.20462 : 1) * 10) / 10} lbs`;
+
+                  return (
+                    <tr key={item.id} className="hover:bg-neutral-50/70 transition-colors">
+                      <td className="py-3.5 px-3 font-mono font-bold text-sm text-neutral-900">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-neutral-900 text-white font-mono text-xs">
+                          {item.size}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3 font-mono font-medium text-neutral-800">
+                        {unit === 'metric'
+                          ? `${item.widthCm} × ${item.depthCm} cm`
+                          : `${cmToFtIn(item.widthCm)} × ${cmToFtIn(item.depthCm)}`}
+                      </td>
+                      <td className="py-3.5 px-3 font-mono text-neutral-600">
+                        {unit === 'metric' ? `${areaM2} m²` : cmToSqFt(item.widthCm, item.depthCm)}
+                      </td>
+                      <td className="py-3.5 px-3 font-mono text-neutral-500 text-[11px]">
+                        {weightDisplay}
+                      </td>
+                      <td className="py-3.5 px-3 text-neutral-600 text-[11px] font-light leading-snug max-w-xs">
+                        {item.idealFor}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
+          {/* Shape-Specific Architectural Guidance (Dynamic per Rug Shape) */}
+          {shapeTip && (
+            <div className="mt-5 p-4 bg-amber-50/60 border border-amber-200/70 rounded-xl space-y-1">
+              <div className="text-[10px] uppercase font-mono tracking-wider font-semibold text-amber-900 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                <span>Tailored Shape Placement: {productShape}</span>
+              </div>
+              <p className="text-xs text-neutral-700 leading-relaxed font-light">
+                {shapeTip}
+              </p>
+            </div>
+          )}
+
           {/* Placement Visual Diagrams Card */}
-          <div className="mt-6 pt-6 border-t border-neutral-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="mt-5 pt-5 border-t border-neutral-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="p-4 bg-neutral-50 border border-neutral-200/80 rounded-xl space-y-2">
               <div className="text-[10px] uppercase font-mono tracking-wider font-semibold text-neutral-800 flex items-center gap-1.5">
                 <Home className="w-3.5 h-3.5 text-neutral-500" />
                 <span>Living Room Layout Tip</span>
               </div>
               <p className="text-xs text-neutral-600 font-light leading-relaxed">
-                For standard seating groups, choose <strong>L (250cm)</strong> so front sofa legs rest naturally over the rug, anchoring the coffee table. For compact apartments or statement focal points, choose <strong>M (200cm)</strong>.
+                {sizingGuideConfig.livingRoomTip ||
+                  'For standard seating groups, choose L (250cm) so front sofa legs rest naturally over the rug, anchoring the coffee table. For compact apartments or statement focal points, choose M (200cm).'}
               </p>
             </div>
 
@@ -192,7 +215,8 @@ export const SizingGuideModal: React.FC<SizingGuideModalProps> = ({
                 <span>Bedroom & Suite Tip</span>
               </div>
               <p className="text-xs text-neutral-600 font-light leading-relaxed">
-                For a king bed, select <strong>XL (300cm)</strong> to provide generous 60–80cm margins on either side and the foot of the bed. For queen beds, <strong>L (250cm)</strong> offers ideal proportion.
+                {sizingGuideConfig.bedroomTip ||
+                  'For a king bed, select XL (300cm) to provide generous 60–80cm margins on either side and the foot of the bed. For queen beds, L (250cm) offers ideal proportion.'}
               </p>
             </div>
           </div>
@@ -204,20 +228,23 @@ export const SizingGuideModal: React.FC<SizingGuideModalProps> = ({
                 <Sparkles className="w-3 h-3 text-amber-400" />
                 <span>Bespoke Dimensions</span>
               </div>
-              <div className="text-xs font-medium">Need custom dimensions or tailored architectural shapes?</div>
-              <div className="text-[11px] text-neutral-400">Our studio crafts custom tufted pieces to exact millimeter specifications.</div>
+              <div className="text-xs font-medium">
+                {sizingGuideConfig.customInquiryText ||
+                  'Need custom dimensions or tailored architectural shapes? Our studio crafts custom tufted pieces to exact millimeter specifications.'}
+              </div>
+              <div className="text-[11px] text-neutral-400">
+                Direct atelier communication for bespoke weave orders and architectural trade quotes.
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                window.open('https://ig.me/m/rugmosiac', '_blank', 'noopener,noreferrer');
-              }}
+            <a
+              href={sizingGuideConfig.customInquiryUrl || 'https://ig.me/m/rugmosiac'}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white text-black hover:bg-neutral-100 text-[10px] uppercase tracking-wider font-semibold rounded-lg transition-colors cursor-pointer shrink-0"
             >
               <span>Inquire on Instagram</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
+            </a>
           </div>
         </motion.div>
       </div>

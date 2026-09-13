@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
-import { TeamMember } from '../../types';
+import { TeamMember, TeamPermissions } from '../../types';
+import { DEFAULT_ROLE_PERMISSIONS } from '../../context/StoreContext';
+import { CustomSelect } from '../common/CustomSelect';
 import {
   Shield,
   Plus,
@@ -14,11 +16,33 @@ import {
   EyeOff,
   Check,
   Mail,
-  User
+  User,
+  Sliders,
+  Trash2,
+  AlertCircle,
+  Sparkles,
+  ShoppingBag,
+  Layers,
+  Settings,
+  DollarSign,
+  FileText,
+  Truck,
+  Users
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 export const TeamManagementView: React.FC = () => {
-  const { teamMembers, toggleTeamMemberActive, updateTeamMember, addTeamMember, showToast } = useStore();
+  const {
+    teamMembers,
+    toggleTeamMemberActive,
+    updateTeamMember,
+    addTeamMember,
+    deleteTeamMember,
+    activeTeamMember,
+    setActiveTeamMemberId,
+    showToast,
+    currentPermissions
+  } = useStore();
 
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(teamMembers[0]?.id || null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -35,6 +59,9 @@ export const TeamManagementView: React.FC = () => {
   const [newRole, setNewRole] = useState<TeamMember['role']>('Senior Curator');
   const [newPin, setNewPin] = useState('5678');
   const [newPassword, setNewPassword] = useState('Pass1234!');
+  const [customNewPermissions, setCustomNewPermissions] = useState<TeamPermissions>(
+    DEFAULT_ROLE_PERMISSIONS['Senior Curator']
+  );
 
   const toggleAccordion = (id: string) => {
     setExpandedMemberId(prev => (prev === id ? null : id));
@@ -66,6 +93,41 @@ export const TeamManagementView: React.FC = () => {
     updateTeamMember(memberId, { password: pass.trim() });
   };
 
+  const handleRoleChange = (memberId: string, newRole: TeamMember['role']) => {
+    const defaultPerms = DEFAULT_ROLE_PERMISSIONS[newRole] || DEFAULT_ROLE_PERMISSIONS['Custom Role'];
+    updateTeamMember(memberId, {
+      role: newRole,
+      permissions: defaultPerms
+    });
+    showToast(`Updated role to ${newRole} with default permissions`);
+  };
+
+  const handleTogglePermission = (memberId: string, permKey: keyof TeamPermissions) => {
+    const member = teamMembers.find(m => m.id === memberId);
+    if (!member) return;
+
+    const currentPerms = member.permissions || DEFAULT_ROLE_PERMISSIONS[member.role] || DEFAULT_ROLE_PERMISSIONS['Studio Director'];
+    const updatedPerms: TeamPermissions = {
+      ...currentPerms,
+      [permKey]: !currentPerms[permKey]
+    };
+
+    updateTeamMember(memberId, {
+      permissions: updatedPerms,
+      role: 'Custom Role' // marks as custom when selectively toggled
+    });
+  };
+
+  const handleApplyPreset = (memberId: string, rolePresetName: keyof typeof DEFAULT_ROLE_PERMISSIONS) => {
+    const preset = DEFAULT_ROLE_PERMISSIONS[rolePresetName];
+    if (!preset) return;
+    updateTeamMember(memberId, {
+      role: rolePresetName as any,
+      permissions: { ...preset }
+    });
+    showToast(`Applied ${rolePresetName} permission preset`);
+  };
+
   const handleCreateMember = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim() || !newEmail.trim()) return;
@@ -77,7 +139,8 @@ export const TeamManagementView: React.FC = () => {
       role: newRole,
       active: true,
       pin: newPin.trim() || '1234',
-      password: newPassword.trim() || 'Studio2026!'
+      password: newPassword.trim() || 'Studio2026!',
+      permissions: customNewPermissions
     });
 
     // Reset form
@@ -89,6 +152,81 @@ export const TeamManagementView: React.FC = () => {
     setShowAddForm(false);
   };
 
+  const permissionItems: { key: keyof TeamPermissions; label: string; desc: string; icon: React.ReactNode }[] = [
+    {
+      key: 'canViewDashboard',
+      label: 'Overview & Analytics',
+      desc: 'Access main dashboard summary cards and performance stats',
+      icon: <Eye className="w-3.5 h-3.5 text-neutral-600" />
+    },
+    {
+      key: 'canViewFinancials',
+      label: 'Financials & Margins',
+      desc: 'View unit cost price, profit margins, and atelier revenue figures',
+      icon: <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+    },
+    {
+      key: 'canEditProducts',
+      label: 'Edit Product Details',
+      desc: 'Modify titles, descriptions, dimensions, prices, and imagery',
+      icon: <Layers className="w-3.5 h-3.5 text-blue-600" />
+    },
+    {
+      key: 'canCreateProducts',
+      label: 'Create New Works',
+      desc: 'Draft and upload new rug works into catalogue inventory',
+      icon: <Plus className="w-3.5 h-3.5 text-purple-600" />
+    },
+    {
+      key: 'canPublishLive',
+      label: 'Publish Live Storefront',
+      desc: 'Commit and sync staged atelier changes to public storefront',
+      icon: <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+    },
+    {
+      key: 'canDeleteProducts',
+      label: 'Deaccession / Delete Works',
+      desc: 'Permanently remove archived editions and pieces from database',
+      icon: <Trash2 className="w-3.5 h-3.5 text-red-600" />
+    },
+    {
+      key: 'canManageOrders',
+      label: 'Order Fulfilment',
+      desc: 'Inspect customer acquisitions and advance shipping/transit status',
+      icon: <Truck className="w-3.5 h-3.5 text-indigo-600" />
+    },
+    {
+      key: 'canManageClientele',
+      label: 'Clientele Directory',
+      desc: 'View collector contacts, private trade accounts, and addresses',
+      icon: <Users className="w-3.5 h-3.5 text-cyan-600" />
+    },
+    {
+      key: 'canManageDiscounts',
+      label: 'Promos & Sample Sales',
+      desc: 'Configure promotional popups, discount codes, and sample sale badges',
+      icon: <ShoppingBag className="w-3.5 h-3.5 text-rose-600" />
+    },
+    {
+      key: 'canManageStoreSettings',
+      label: 'Store Settings & Formulas',
+      desc: 'Configure collections, rug shapes/styles, sizing guide, and weight formulas',
+      icon: <Settings className="w-3.5 h-3.5 text-orange-600" />
+    },
+    {
+      key: 'canManagePolicies',
+      label: 'Terms & Studio Policies',
+      desc: 'Update shipping disclaimers, 30-day guarantee, and legal agreements',
+      icon: <FileText className="w-3.5 h-3.5 text-teal-600" />
+    },
+    {
+      key: 'canManageTeam',
+      label: 'Team Security & Access',
+      desc: 'Add/remove personnel, adjust role credentials, and assign permissions',
+      icon: <Shield className="w-3.5 h-3.5 text-neutral-800" />
+    },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Top Header */}
@@ -98,10 +236,10 @@ export const TeamManagementView: React.FC = () => {
             Access Control · Personnel & Security
           </div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 mt-0.5">
-            Studio Team Members
+            Studio Team & Granular Permissions
           </h1>
           <p className="text-xs text-neutral-500 mt-1">
-            Manage personnel status, access tiers, 4-digit PINs, and authentication credentials.
+            Choose what employees can access, view, edit, or publish across the studio environment.
           </p>
         </div>
 
@@ -115,11 +253,39 @@ export const TeamManagementView: React.FC = () => {
         </button>
       </div>
 
+      {/* Live Persona Simulation Selector */}
+      <div className="p-4 bg-neutral-900 text-white rounded-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2 text-xs font-semibold">
+            <Sliders className="w-3.5 h-3.5 text-amber-400" />
+            <span>Active Logged-in Staff Persona</span>
+          </div>
+          <p className="text-[11px] text-neutral-400">
+            Switch active staff member to test their real-time permission boundaries throughout the studio.
+          </p>
+        </div>
+
+        <div className="w-full sm:w-72">
+          <CustomSelect
+            value={activeTeamMember.id}
+            onChange={id => setActiveTeamMemberId(id)}
+            options={teamMembers.map(m => ({
+              value: m.id,
+              label: m.name,
+              sublabel: `${m.role} · ${m.active ? 'Active' : 'Inactive'}`,
+              badge: m.role.split(' ')[0]
+            }))}
+            buttonClassName="bg-neutral-800 border-neutral-700 text-white hover:bg-neutral-700"
+            menuClassName="bg-neutral-900 border-neutral-800 text-white"
+          />
+        </div>
+      </div>
+
       {/* New Member Form Modal / Drawer */}
       {showAddForm && (
         <form
           onSubmit={handleCreateMember}
-          className="bg-white border border-neutral-300 rounded-sm p-5 sm:p-6 space-y-4 shadow-sm animate-in fade-in duration-200"
+          className="bg-white border border-neutral-300 rounded-sm p-5 sm:p-6 space-y-5 shadow-sm animate-in fade-in duration-200"
         >
           <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-900 flex items-center gap-2">
@@ -175,18 +341,25 @@ export const TeamManagementView: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-[10px] uppercase tracking-wider font-semibold text-neutral-600 mb-1">
-                Role Tier
+                Role Assignment Preset
               </label>
-              <select
+              <CustomSelect
                 value={newRole}
-                onChange={e => setNewRole(e.target.value as any)}
-                className="w-full border border-neutral-300 rounded-sm px-3 py-2 text-xs focus:outline-black bg-white font-medium"
-              >
-                <option value="Studio Director">Studio Director</option>
-                <option value="Senior Curator">Senior Curator</option>
-                <option value="Atelier Manager">Atelier Manager</option>
-                <option value="Logistics Lead">Logistics Lead</option>
-              </select>
+                onChange={val => {
+                  const role = val as TeamMember['role'];
+                  setNewRole(role);
+                  if (DEFAULT_ROLE_PERMISSIONS[role]) {
+                    setCustomNewPermissions(DEFAULT_ROLE_PERMISSIONS[role]);
+                  }
+                }}
+                options={[
+                  { value: 'Studio Director', label: 'Studio Director', sublabel: 'Full administrator access' },
+                  { value: 'Senior Curator', label: 'Senior Curator', sublabel: 'Catalogue & pricing control' },
+                  { value: 'Atelier Manager', label: 'Atelier Manager', sublabel: 'Orders & inventory' },
+                  { value: 'Logistics Lead', label: 'Logistics Lead', sublabel: 'Shipping & client directory' },
+                  { value: 'Custom Role', label: 'Custom Role', sublabel: 'Tailored permissions' }
+                ]}
+              />
             </div>
 
             <div>
@@ -217,7 +390,7 @@ export const TeamManagementView: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex justify-end gap-2 pt-2 border-t border-neutral-200">
             <button
               type="button"
               onClick={() => setShowAddForm(false)}
@@ -229,7 +402,7 @@ export const TeamManagementView: React.FC = () => {
               type="submit"
               className="px-5 py-2 bg-black text-white text-xs uppercase tracking-wider font-semibold rounded-sm hover:bg-neutral-800 transition-colors shadow-xs cursor-pointer"
             >
-              Add Member
+              Provision Member
             </button>
           </div>
         </form>
@@ -242,6 +415,7 @@ export const TeamManagementView: React.FC = () => {
           const currentPin = editingPins[member.id] ?? member.pin;
           const currentPassword = editingPasswords[member.id] ?? (member.password || '••••••••');
           const isPassVisible = Boolean(showPasswordMap[member.id]);
+          const perms = member.permissions || DEFAULT_ROLE_PERMISSIONS[member.role] || DEFAULT_ROLE_PERMISSIONS['Studio Director'];
 
           return (
             <div key={member.id} className="transition-colors">
@@ -273,9 +447,14 @@ export const TeamManagementView: React.FC = () => {
                       <span className="text-[10px] font-mono text-neutral-400">
                         @{member.username}
                       </span>
+                      {member.id === activeTeamMember.id && (
+                        <span className="px-1.5 py-0.5 rounded-full text-[9px] font-mono uppercase bg-neutral-900 text-white">
+                          Current Persona
+                        </span>
+                      )}
                     </div>
                     <div className="text-[11px] text-neutral-500 truncate flex items-center gap-2">
-                      <span>{member.role}</span>
+                      <span className="font-medium text-neutral-800">{member.role}</span>
                       <span>·</span>
                       <span className="font-mono text-[10px] text-neutral-400">{member.email}</span>
                     </div>
@@ -306,36 +485,132 @@ export const TeamManagementView: React.FC = () => {
 
               {/* Accordion Expanded Body */}
               {isExpanded && (
-                <div className="p-5 bg-neutral-50/80 border-t border-neutral-100 space-y-5 animate-in fade-in duration-150">
-                  <div className="flex items-center justify-between pb-3 border-b border-neutral-200">
+                <div className="p-5 bg-neutral-50/80 border-t border-neutral-100 space-y-6 animate-in fade-in duration-150">
+                  {/* Action Bar */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-neutral-200">
                     <span className="text-[10px] uppercase font-mono tracking-wider text-neutral-500 font-semibold">
                       Account Credentials & Security Management
                     </span>
 
-                    {/* Active / Inactive Status Switch */}
-                    <button
-                      type="button"
-                      onClick={() => toggleTeamMemberActive(member.id)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium uppercase tracking-wider rounded-sm transition-colors cursor-pointer ${
-                        member.active
-                          ? 'bg-neutral-200 text-neutral-800 hover:bg-neutral-300'
-                          : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                      }`}
-                    >
-                      {member.active ? (
-                        <>
-                          <UserX className="w-3.5 h-3.5" />
-                          <span>Deactivate Access</span>
-                        </>
-                      ) : (
-                        <>
-                          <UserCheck className="w-3.5 h-3.5" />
-                          <span>Activate Access</span>
-                        </>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleTeamMemberActive(member.id)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium uppercase tracking-wider rounded-sm transition-colors cursor-pointer ${
+                          member.active
+                            ? 'bg-neutral-200 text-neutral-800 hover:bg-neutral-300'
+                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        }`}
+                      >
+                        {member.active ? (
+                          <>
+                            <UserX className="w-3.5 h-3.5" />
+                            <span>Deactivate Access</span>
+                          </>
+                        ) : (
+                          <>
+                            <UserCheck className="w-3.5 h-3.5" />
+                            <span>Activate Access</span>
+                          </>
+                        )}
+                      </button>
+
+                      {teamMembers.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Remove team member ${member.name}?`)) {
+                              deleteTeamMember(member.id);
+                            }
+                          }}
+                          className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-neutral-200 rounded-sm transition-colors cursor-pointer"
+                          title="Delete Member"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       )}
-                    </button>
+                    </div>
                   </div>
 
+                  {/* GRANULAR PERMISSIONS MATRIX SECTION */}
+                  <div className="p-5 bg-white border border-neutral-200 rounded-sm space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-neutral-100">
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-900 flex items-center gap-1.5">
+                          <Shield className="w-3.5 h-3.5 text-black" />
+                          <span>Granular Access & Editing Permissions</span>
+                        </h4>
+                        <p className="text-[11px] text-neutral-500">
+                          Toggle specific capabilities for this user or choose a pre-configured role template.
+                        </p>
+                      </div>
+
+                      {/* Quick Role Presets */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] font-mono uppercase text-neutral-400 mr-1">Presets:</span>
+                        {(['Studio Director', 'Senior Curator', 'Atelier Manager', 'Logistics Lead'] as const).map(rolePreset => (
+                          <button
+                            key={rolePreset}
+                            type="button"
+                            onClick={() => handleApplyPreset(member.id, rolePreset)}
+                            className={`px-2 py-1 text-[10px] uppercase font-mono rounded-xs transition-colors cursor-pointer border ${
+                              member.role === rolePreset
+                                ? 'bg-black text-white border-black'
+                                : 'bg-neutral-50 text-neutral-600 border-neutral-200 hover:border-neutral-400'
+                            }`}
+                          >
+                            {rolePreset.split(' ')[0]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Permission Toggles Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {permissionItems.map(item => {
+                        const isAllowed = Boolean(perms[item.key]);
+
+                        return (
+                          <div
+                            key={item.key}
+                            onClick={() => handleTogglePermission(member.id, item.key)}
+                            className={`p-3 rounded-sm border transition-all cursor-pointer select-none flex items-start justify-between gap-3 ${
+                              isAllowed
+                                ? 'bg-neutral-50/80 border-neutral-300 hover:border-neutral-400'
+                                : 'bg-white border-neutral-200 opacity-60 hover:opacity-90'
+                            }`}
+                          >
+                            <div className="space-y-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                {item.icon}
+                                <span className="font-semibold text-xs text-neutral-900 truncate">
+                                  {item.label}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-neutral-500 leading-tight">
+                                {item.desc}
+                              </p>
+                            </div>
+
+                            {/* Toggle Switch */}
+                            <div
+                              className={`w-8 h-4 rounded-full transition-colors relative shrink-0 mt-0.5 ${
+                                isAllowed ? 'bg-black' : 'bg-neutral-300'
+                              }`}
+                            >
+                              <div
+                                className={`w-3 h-3 rounded-full bg-white transition-transform absolute top-0.5 ${
+                                  isAllowed ? 'left-4.5' : 'left-0.5'
+                                }`}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Credentials Section */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     {/* PIN Management Box */}
                     <div className="p-4 bg-white border border-neutral-200 rounded-sm space-y-3">
@@ -352,7 +627,7 @@ export const TeamManagementView: React.FC = () => {
                           maxLength={6}
                           value={currentPin}
                           onChange={e => handlePinChange(member.id, e.target.value)}
-                          className="w-32 border border-neutral-300 rounded-sm px-3 py-1.5 text-xs font-mono font-bold tracking-widest text-center focus:outline-black"
+                          className="w-32 border border-neutral-300 rounded-sm px-3 py-1.5 text-xs font-mono font-bold tracking-widest text-center focus:outline-black bg-white"
                         />
                         <button
                           type="button"
@@ -379,7 +654,7 @@ export const TeamManagementView: React.FC = () => {
                             type={isPassVisible ? 'text' : 'password'}
                             value={currentPassword}
                             onChange={e => handlePasswordChange(member.id, e.target.value)}
-                            className="w-full border border-neutral-300 rounded-sm px-3 py-1.5 text-xs font-mono focus:outline-black pr-8"
+                            className="w-full border border-neutral-300 rounded-sm px-3 py-1.5 text-xs font-mono focus:outline-black pr-8 bg-white"
                           />
                           <button
                             type="button"
@@ -410,40 +685,41 @@ export const TeamManagementView: React.FC = () => {
                   {/* Metadata and Role Row */}
                   <div className="p-4 bg-white border border-neutral-200 rounded-sm grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
                     <div>
-                      <span className="block text-[10px] uppercase tracking-wider font-semibold text-neutral-400 mb-1">
+                      <span className="block text-[10px] uppercase tracking-wider font-semibold text-neutral-400 mb-1.5">
                         Role Assignment
                       </span>
-                      <select
+                      <CustomSelect
                         value={member.role}
-                        onChange={e => updateTeamMember(member.id, { role: e.target.value as any })}
-                        className="w-full border border-neutral-300 rounded-sm px-2.5 py-1 text-xs bg-white focus:outline-black font-medium"
-                      >
-                        <option value="Studio Director">Studio Director</option>
-                        <option value="Senior Curator">Senior Curator</option>
-                        <option value="Atelier Manager">Atelier Manager</option>
-                        <option value="Logistics Lead">Logistics Lead</option>
-                      </select>
+                        onChange={val => handleRoleChange(member.id, val as TeamMember['role'])}
+                        options={[
+                          { value: 'Studio Director', label: 'Studio Director' },
+                          { value: 'Senior Curator', label: 'Senior Curator' },
+                          { value: 'Atelier Manager', label: 'Atelier Manager' },
+                          { value: 'Logistics Lead', label: 'Logistics Lead' },
+                          { value: 'Custom Role', label: 'Custom Role' }
+                        ]}
+                      />
                     </div>
 
                     <div>
-                      <span className="block text-[10px] uppercase tracking-wider font-semibold text-neutral-400 mb-1">
+                      <span className="block text-[10px] uppercase tracking-wider font-semibold text-neutral-400 mb-1.5">
                         Contact Email
                       </span>
                       <input
                         type="email"
                         value={member.email}
                         onChange={e => updateTeamMember(member.id, { email: e.target.value })}
-                        className="w-full border border-neutral-300 rounded-sm px-2.5 py-1 text-xs font-mono bg-white focus:outline-black"
+                        className="w-full border border-neutral-300 rounded-sm px-3 py-2 text-xs font-mono bg-white focus:outline-black"
                       />
                     </div>
 
                     <div>
-                      <span className="block text-[10px] uppercase tracking-wider font-semibold text-neutral-400 mb-1">
+                      <span className="block text-[10px] uppercase tracking-wider font-semibold text-neutral-400 mb-1.5">
                         Activity Log
                       </span>
-                      <span className="inline-block pt-1 font-mono text-[11px] text-neutral-600">
+                      <div className="pt-2 font-mono text-[11px] text-neutral-600">
                         Last Active: {member.lastActive || 'Today'}
-                      </span>
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -12,6 +12,7 @@ import { Footer } from './components/storefront/Footer';
 import { CookieBanner } from './components/storefront/CookieBanner';
 import { StoreModals } from './components/storefront/StoreModals';
 import { DashboardShell } from './components/dashboard/DashboardShell';
+import { ReceiptView } from './components/receipt/ReceiptView';
 import { ToastNotification } from './components/common/ToastNotification';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -42,9 +43,20 @@ const MainAppContent: React.FC = () => {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.99 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="min-h-screen"
+            className="h-screen overflow-hidden"
           >
             <DashboardShell />
+          </motion.div>
+        ) : currentView === 'receipt' ? (
+          <motion.div
+            key="receipt-view-container"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="min-h-screen"
+          >
+            <ReceiptView />
           </motion.div>
         ) : (
           <motion.div

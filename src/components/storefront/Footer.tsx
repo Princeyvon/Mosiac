@@ -1,9 +1,14 @@
 import React from 'react';
 import { useStore } from '../../context/StoreContext';
-import { LayoutDashboard } from 'lucide-react';
+import { LayoutDashboard, Receipt } from 'lucide-react';
 
 export const Footer: React.FC = () => {
-  const { navigateToDash, navigateToStore, navigateToPolicies } = useStore();
+  const { navigateToDash, navigateToStore, navigateToPolicies, navigateToReceipt, orders } = useStore();
+
+  const handleOpenReceipt = () => {
+    const targetOrderId = orders[0]?.id || 'ORD-9021';
+    navigateToReceipt(targetOrderId);
+  };
 
   return (
     <footer className="w-full bg-white border-t border-black/[0.05] py-4 sm:py-6 px-4 sm:px-8 select-none">
@@ -19,6 +24,18 @@ export const Footer: React.FC = () => {
 
         {/* Links formatted responsively for mobile and desktop */}
         <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-neutral-500">
+          <button
+            type="button"
+            onClick={handleOpenReceipt}
+            className="inline-flex items-center gap-1 hover:text-black transition-colors cursor-pointer py-1 text-neutral-600"
+            title="View sample client receipt"
+          >
+            <Receipt className="w-3.5 h-3.5 text-neutral-500" />
+            <span>Client Receipt & Pass</span>
+          </button>
+
+          <span className="text-neutral-300 select-none" aria-hidden="true">/</span>
+
           <button
             type="button"
             onClick={navigateToPolicies}

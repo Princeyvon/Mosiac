@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
-import { ArrowLeft, ChevronDown, Plus, Minus, X, CreditCard, CheckCircle2, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Plus, Minus, X, CreditCard, CheckCircle2, ShoppingBag, Receipt, Copy, Check, ExternalLink, Printer } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Order } from '../../types';
+import { CustomSelect } from '../common/CustomSelect';
 
 export const CartPage: React.FC = () => {
   const {
@@ -20,6 +21,7 @@ export const CartPage: React.FC = () => {
     formatPrice,
     navigateToStore,
     submitCheckoutOrder,
+    navigateToReceipt,
   } = useStore();
 
   const [paymentMethod, setPaymentMethod] = useState<'credit' | 'paypal'>('credit');
@@ -35,6 +37,7 @@ export const CartPage: React.FC = () => {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const handleApplyPromo = (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,21 +132,16 @@ export const CartPage: React.FC = () => {
                       </div>
 
                       {/* Size Selector Dropdown */}
-                      <div className="col-span-3 sm:col-span-3 flex justify-center sm:justify-start">
-                        <div className="relative inline-block">
-                          <select
-                            value={item.sizeId}
-                            onChange={(e) => updateCartItemSize(idx, e.target.value)}
-                            className="appearance-none bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-[11px] text-neutral-800 rounded-sm pl-2.5 pr-6 py-1.5 font-medium cursor-pointer focus:outline-none"
-                          >
-                            {product.sizes.map(s => (
-                              <option key={s.id} value={s.id}>
-                                {s.label}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className="w-3 h-3 text-neutral-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        </div>
+                      <div className="col-span-3 sm:col-span-3 flex justify-center sm:justify-start min-w-[130px]">
+                        <CustomSelect
+                          value={item.sizeId}
+                          onChange={(val) => updateCartItemSize(idx, val)}
+                          options={product.sizes.map(s => ({
+                            value: s.id,
+                            label: s.label
+                          }))}
+                          buttonClassName="py-1 px-2.5 text-[11px] bg-neutral-50 hover:bg-neutral-100 border-neutral-200"
+                        />
                       </div>
 
                       {/* Quantity Stepper */}
@@ -352,30 +350,24 @@ export const CartPage: React.FC = () => {
                         Expiration Date:
                       </label>
                       <div className="grid grid-cols-2 gap-2">
-                        <div className="relative">
-                          <select
-                            value={expMonth}
-                            onChange={(e) => setExpMonth(e.target.value)}
-                            className="w-full appearance-none bg-white border border-neutral-300 rounded-sm px-2 py-2 text-xs text-neutral-900 focus:outline-none focus:border-black cursor-pointer"
-                          >
-                            {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map(m => (
-                              <option key={m} value={m}>{m}</option>
-                            ))}
-                          </select>
-                          <ChevronDown className="w-3 h-3 text-neutral-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        </div>
-                        <div className="relative">
-                          <select
-                            value={expYear}
-                            onChange={(e) => setExpYear(e.target.value)}
-                            className="w-full appearance-none bg-white border border-neutral-300 rounded-sm px-2 py-2 text-xs text-neutral-900 focus:outline-none focus:border-black cursor-pointer"
-                          >
-                            {['2026', '2027', '2028', '2029', '2030'].map(y => (
-                              <option key={y} value={y}>{y}</option>
-                            ))}
-                          </select>
-                          <ChevronDown className="w-3 h-3 text-neutral-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        </div>
+                        <CustomSelect
+                          value={expMonth}
+                          onChange={(val) => setExpMonth(val)}
+                          options={['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map(m => ({
+                            value: m,
+                            label: m
+                          }))}
+                          buttonClassName="py-1.5 px-2.5 text-xs bg-white border-neutral-300"
+                        />
+                        <CustomSelect
+                          value={expYear}
+                          onChange={(val) => setExpYear(val)}
+                          options={['2026', '2027', '2028', '2029', '2030'].map(y => ({
+                            value: y,
+                            label: y
+                          }))}
+                          buttonClassName="py-1.5 px-2.5 text-xs bg-white border-neutral-300"
+                        />
                       </div>
                     </div>
 
@@ -420,37 +412,79 @@ export const CartPage: React.FC = () => {
       {/* Order Complete Modal */}
       <AnimatePresence>
         {completedOrder && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-sm shadow-2xl max-w-md w-full p-8 text-center border border-neutral-200"
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-7 text-center border border-neutral-200 overflow-hidden relative"
             >
-              <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto mb-3" />
-              <div className="text-[10px] uppercase tracking-[0.25em] text-neutral-400 font-mono mb-1">
-                Order Confirmed
+              <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3 border border-emerald-200">
+                <CheckCircle2 className="w-6 h-6" />
               </div>
-              <h2 className="text-xl font-serif font-normal uppercase tracking-wider text-neutral-900 mb-2">
+              <div className="text-[10px] uppercase tracking-[0.25em] text-neutral-400 font-mono mb-1">
+                Payment Authorized & Settled
+              </div>
+              <h2 className="text-xl font-serif font-normal text-neutral-900 mb-1">
                 Thank You, {completedOrder.customerName}
               </h2>
-              <p className="text-xs text-neutral-500 font-light mb-5">
-                Your bespoke studio acquisition has been registered under invoice <span className="font-mono font-semibold text-neutral-800">{completedOrder.id}</span>.
+              <p className="text-xs text-neutral-500 font-light mb-4">
+                Your commission has been registered under reference <span className="font-mono font-semibold text-neutral-800">{completedOrder.id}</span>.
               </p>
 
-              <div className="bg-neutral-50 rounded-sm p-4 text-left text-xs mb-6 space-y-2 border border-neutral-200">
+              <div className="bg-neutral-50 rounded-xl p-4 text-left text-xs mb-5 space-y-2 border border-neutral-200">
                 <div className="flex justify-between">
-                  <span className="text-neutral-500">Total Charged:</span>
-                  <span className="font-mono font-semibold text-neutral-900">{formatPrice(completedOrder.total)}</span>
+                  <span className="text-neutral-500">Total Settled:</span>
+                  <span className="font-mono font-bold text-neutral-900">{formatPrice(completedOrder.total)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-neutral-500">Order Reference:</span>
-                  <span className="font-mono text-neutral-800">{completedOrder.id}</span>
+                  <span className="text-neutral-500">Receipt Pass ID:</span>
+                  <span className="font-mono text-neutral-800">{completedOrder.receiptId || `RCP-${completedOrder.id}`}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-neutral-500">Estimated Dispatch:</span>
-                  <span className="text-neutral-800">3–5 business days</span>
+                  <span className="text-neutral-500">Logistics Transit:</span>
+                  <span className="text-emerald-700 font-medium">White-Glove Inspected Direct Flight</span>
                 </div>
+              </div>
+
+              {/* Action Buttons: View Receipt & Unique Link */}
+              <div className="space-y-2.5 mb-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const oId = completedOrder.id;
+                    setCompletedOrder(null);
+                    navigateToReceipt(oId);
+                  }}
+                  className="w-full py-3 px-5 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white text-xs uppercase tracking-[0.16em] font-medium transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                >
+                  <Receipt className="w-4 h-4 text-amber-300" />
+                  <span>View Official Receipt & Pass</span>
+                  <ExternalLink className="w-3.5 h-3.5 text-neutral-400" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const link = `${window.location.origin}${window.location.pathname}#/receipt/${completedOrder.id}`;
+                    navigator.clipboard?.writeText(link);
+                    setCopiedLink(true);
+                    setTimeout(() => setCopiedLink(false), 2200);
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer border border-neutral-200"
+                >
+                  {copiedLink ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="text-emerald-700">Receipt Link Copied to Clipboard</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-neutral-500" />
+                      <span>Copy Client Unique Receipt Link</span>
+                    </>
+                  )}
+                </button>
               </div>
 
               <button
@@ -459,9 +493,9 @@ export const CartPage: React.FC = () => {
                   setCompletedOrder(null);
                   navigateToStore();
                 }}
-                className="w-full py-3 px-6 rounded-sm bg-black text-white text-xs uppercase tracking-[0.2em] font-medium hover:bg-neutral-800 transition-colors cursor-pointer"
+                className="text-xs text-neutral-400 hover:text-neutral-700 font-medium transition-colors cursor-pointer pt-1"
               >
-                Return to Collection
+                Return to Storefront Catalog
               </button>
             </motion.div>
           </div>

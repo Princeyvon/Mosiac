@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../../context/StoreContext';
 import { Product, ProductSize, ProductColor } from '../../types';
 import { ImageUploadField } from './ImageUploadField';
 import { removeImageBackgroundInBrowser } from '../../utils/imageProcessing';
+import { CustomSelect } from '../common/CustomSelect';
 import {
   Check,
   X,
@@ -21,7 +22,8 @@ import {
   Layers,
   Scissors,
   Wand2,
-  Loader2
+  Loader2,
+  Scale
 } from 'lucide-react';
 
 interface ProductEditFormProps {
@@ -29,7 +31,17 @@ interface ProductEditFormProps {
 }
 
 export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) => {
-  const { stagedProducts, saveProductDraft, setEditingProductId, formatPrice, showToast } = useStore();
+  const {
+    stagedProducts,
+    saveProductDraft,
+    setEditingProductId,
+    formatPrice,
+    showToast,
+    collections,
+    shapes,
+    calculateWeight,
+    weightFormula
+  } = useStore();
 
   const originalProduct = stagedProducts.find(p => p.id === productId);
 
@@ -39,7 +51,12 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
         <p className="text-neutral-500">Product not found.</p>
         <button
           type="button"
-          onClick={() => setEditingProductId(null)}
+          onClick={() => {
+            try {
+              sessionStorage.removeItem('mosiac_editing_product_id');
+            } catch {}
+            setEditingProductId(null);
+          }}
           className="mt-4 px-4 py-2 bg-black text-white text-xs uppercase tracking-wider rounded-full"
         >
           Return to Catalogue
@@ -48,7 +65,43 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
     );
   }
 
-  const [form, setForm] = useState<Product>({ ...originalProduct });
+  // Restore unsaved work if browser was refreshed while editing
+  const [form, setForm] = useState<Product>(() => {
+    try {
+      const draft = sessionStorage.getItem(`mosiac_edit_draft_${productId}`);
+      if (draft) {
+        const parsed = JSON.parse(draft);
+        if (parsed && parsed.id === productId) {
+          return { ...originalProduct, ...parsed };
+        }
+      }
+    } catch {}
+    return { ...originalProduct };
+  });
+
+  // Preserve in-progress edits across page refreshes
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(`mosiac_edit_draft_${productId}`, JSON.stringify(form));
+      sessionStorage.setItem('mosiac_editing_product_id', productId);
+    } catch {}
+  }, [form, productId]);
+
+  // Keyboard shortcut Ctrl+S / Cmd+S to save and publish
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveProductDraft(form, true);
+        try {
+          sessionStorage.removeItem(`mosiac_edit_draft_${productId}`);
+          sessionStorage.removeItem('mosiac_editing_product_id');
+        } catch {}
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [form, productId, saveProductDraft]);
   const [newTagInput, setNewTagInput] = useState('');
   const [newColorName, setNewColorName] = useState('');
   const [newColorHex, setNewColorHex] = useState('#222222');
@@ -219,13 +272,15 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
 
   // Sizes, Pricing, and Weight Table management
   const handleAddSize = () => {
+    const width = 200;
+    const depth = 200;
     const newSize: ProductSize = {
       id: 's-' + Date.now().toString().slice(-4),
       label: 'M',
-      width: 200,
-      depth: 200,
+      width,
+      depth,
       price: form.fromPrice || 1850,
-      weight: Math.round(200 * 200 * 0.0085) // Weight fills in automatically from dimensions: area * 0.0085
+      weight: calculateWeight(width, depth, form.shape, form.material)
     };
     setForm(prev => ({ ...prev, sizes: [...prev.sizes, newSize] }));
   };
@@ -244,7 +299,7 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
       width: defaults.width,
       depth: defaults.depth,
       price: defaults.price,
-      weight: Math.max(1, Math.round(defaults.width * defaults.depth * 0.0085))
+      weight: calculateWeight(defaults.width, defaults.depth, form.shape, form.material)
     };
     setForm(prev => ({ ...prev, sizes: [...prev.sizes, newSize] }));
   };
@@ -252,12 +307,24 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
   const handleApplyStandardSizes = () => {
     const base = form.fromPrice || 1850;
     const stdSizes: ProductSize[] = [
-      { id: 's-s-' + Date.now(), label: 'S', width: 150, depth: 150, price: base, weight: 19 },
-      { id: 's-m-' + Date.now(), label: 'M', width: 200, depth: 200, price: Math.round(base * 1.45), weight: 34 },
-      { id: 's-l-' + Date.now(), label: 'L', width: 250, depth: 250, price: Math.round(base * 2.05), weight: 53 },
-      { id: 's-xl-' + Date.now(), label: 'XL', width: 300, depth: 300, price: Math.round(base * 2.75), weight: 77 },
+      { id: 's-s-' + Date.now(), label: 'S', width: 150, depth: 150, price: base, weight: calculateWeight(150, 150, form.shape, form.material) },
+      { id: 's-m-' + Date.now(), label: 'M', width: 200, depth: 200, price: Math.round(base * 1.45), weight: calculateWeight(200, 200, form.shape, form.material) },
+      { id: 's-l-' + Date.now(), label: 'L', width: 250, depth: 250, price: Math.round(base * 2.05), weight: calculateWeight(250, 250, form.shape, form.material) },
+      { id: 's-xl-' + Date.now(), label: 'XL', width: 300, depth: 300, price: Math.round(base * 2.75), weight: calculateWeight(300, 300, form.shape, form.material) },
     ];
     setForm(prev => ({ ...prev, sizes: stdSizes }));
+    showToast('Applied standard S, M, L, XL sizes with dynamic weights');
+  };
+
+  const handleRecalculateAllWeights = () => {
+    setForm(prev => ({
+      ...prev,
+      sizes: prev.sizes.map(sz => ({
+        ...sz,
+        weight: calculateWeight(sz.width, sz.depth, form.shape, form.material)
+      }))
+    }));
+    showToast('Recalculated all sizes using studio weight formula');
   };
 
   const handleUpdateSize = (index: number, field: keyof ProductSize, value: any) => {
@@ -265,11 +332,11 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
       const nextSizes = [...prev.sizes];
       const target = { ...nextSizes[index], [field]: value };
 
-      // Auto update weight when width or depth changes
+      // Auto update weight when width or depth changes using studio weight formula
       if (field === 'width' || field === 'depth') {
         const w = field === 'width' ? Number(value) : target.width;
         const d = field === 'depth' ? Number(value) : target.depth;
-        target.weight = Math.max(1, Math.round(w * d * 0.0085));
+        target.weight = calculateWeight(w, d, form.shape, form.material);
       }
 
       nextSizes[index] = target;
@@ -281,13 +348,25 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
     setForm(prev => ({ ...prev, sizes: prev.sizes.filter((_, i) => i !== index) }));
   };
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    saveProductDraft(form);
+  const handleSave = (e?: React.FormEvent, publishLive: boolean = true) => {
+    if (e) e.preventDefault();
+    saveProductDraft(form, publishLive);
+    try {
+      sessionStorage.removeItem(`mosiac_edit_draft_${productId}`);
+      sessionStorage.removeItem('mosiac_editing_product_id');
+    } catch {}
+  };
+
+  const handleCancel = () => {
+    try {
+      sessionStorage.removeItem(`mosiac_edit_draft_${productId}`);
+      sessionStorage.removeItem('mosiac_editing_product_id');
+    } catch {}
+    setEditingProductId(null);
   };
 
   return (
-    <form onSubmit={handleSave} className="space-y-8 max-w-7xl mx-auto pb-16">
+    <form onSubmit={(e) => handleSave(e, true)} className="space-y-8 max-w-7xl mx-auto pb-16">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-200">
         <div>
@@ -299,14 +378,22 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
           </h1>
         </div>
 
-        {/* Top-right Cancel + Publish Changes buttons */}
+        {/* Top-right Cancel + Save Draft + Publish Changes buttons */}
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => setEditingProductId(null)}
+            onClick={handleCancel}
             className="px-4 py-2 text-[11px] uppercase tracking-wider font-semibold rounded-full border border-neutral-300 text-neutral-700 hover:border-black hover:text-black transition-colors"
           >
             Cancel
+          </button>
+          <button
+            id="dash-save-draft-btn"
+            type="button"
+            onClick={() => handleSave(undefined, false)}
+            className="px-4 py-2 text-[11px] uppercase tracking-wider font-semibold rounded-full border border-neutral-800 text-neutral-900 hover:bg-neutral-100 transition-colors"
+          >
+            Save Draft
           </button>
           <button
             id="dash-publish-changes-btn"
@@ -379,34 +466,34 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
                     <label className="block text-[10px] uppercase tracking-wider font-semibold text-neutral-700 mb-1.5">
                       Collection
                     </label>
-                    <select
+                    <CustomSelect
                       value={form.collection}
-                      onChange={e => setForm({ ...form, collection: e.target.value })}
-                      className="w-full border border-neutral-300 rounded-sm px-3 py-2 text-xs focus:outline-black bg-white"
-                    >
-                      <option value="Furniture">Furniture</option>
-                      <option value="Ceramics">Ceramics</option>
-                      <option value="Lighting">Lighting</option>
-                      <option value="Sculptural Objects">Sculptural Objects</option>
-                      <option value="Textiles">Textiles</option>
-                    </select>
+                      onChange={val => setForm({ ...form, collection: val })}
+                      options={[
+                        ...collections.map(c => ({ value: c.name, label: c.name })),
+                        ...(form.collection && !collections.some(c => c.name === form.collection)
+                          ? [{ value: form.collection, label: form.collection }]
+                          : [])
+                      ]}
+                      buttonClassName="py-2 px-3 text-xs bg-white border-neutral-300"
+                    />
                   </div>
 
                   <div>
                     <label className="block text-[10px] uppercase tracking-wider font-semibold text-neutral-700 mb-1.5">
                       Shape / Style
                     </label>
-                    <select
+                    <CustomSelect
                       value={form.shape}
-                      onChange={e => setForm({ ...form, shape: e.target.value })}
-                      className="w-full border border-neutral-300 rounded-sm px-3 py-2 text-xs focus:outline-black bg-white"
-                    >
-                      <option value="Monolithic">Monolithic</option>
-                      <option value="Geometric">Geometric</option>
-                      <option value="Radial">Radial</option>
-                      <option value="Organic">Organic</option>
-                      <option value="Angular">Angular</option>
-                    </select>
+                      onChange={val => setForm({ ...form, shape: val })}
+                      options={[
+                        ...shapes.map(s => ({ value: s.name, label: s.name })),
+                        ...(form.shape && !shapes.some(s => s.name === form.shape)
+                          ? [{ value: form.shape, label: form.shape }]
+                          : [])
+                      ]}
+                      buttonClassName="py-2 px-3 text-xs bg-white border-neutral-300"
+                    />
                   </div>
                 </div>
 
@@ -416,18 +503,18 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
                     <label className="block text-[10px] uppercase tracking-wider font-semibold text-neutral-700 mb-1.5">
                       Availability
                     </label>
-                    <select
+                    <CustomSelect
                       value={form.availability}
-                      onChange={e => {
-                        const val = e.target.value as any;
-                        setForm({ ...form, availability: val, fulfilment: val });
+                      onChange={val => {
+                        setForm({ ...form, availability: val as any, fulfilment: val as any });
                       }}
-                      className="w-full border border-neutral-300 rounded-sm px-3 py-2 text-xs focus:outline-black bg-white font-medium"
-                    >
-                      <option value="Made to order">Made to order</option>
-                      <option value="In stock">In stock</option>
-                      <option value="Sold out">Sold out</option>
-                    </select>
+                      options={[
+                        { value: 'Made to order', label: 'Made to order' },
+                        { value: 'In stock', label: 'In stock' },
+                        { value: 'Sold out', label: 'Sold out' },
+                      ]}
+                      buttonClassName="py-2 px-3 text-xs bg-white border-neutral-300 font-medium"
+                    />
                   </div>
 
                   <div>
@@ -879,30 +966,21 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
 
                           {/* Quick link variant dropdown */}
                           <div className="mt-1">
-                            <select
+                            <CustomSelect
                               value={linkedColor?.id || ''}
-                              onChange={e => {
-                                const selId = e.target.value;
+                              onChange={selId => {
                                 if (selId) {
                                   handleSetColorImage(selId, url);
                                 } else if (linkedColor) {
                                   handleRemoveColorImage(linkedColor.id);
                                 }
                               }}
-                              className={`w-full text-[8px] font-mono py-0.5 px-0.5 rounded-xs border truncate cursor-pointer ${
-                                linkedColor
-                                  ? 'bg-neutral-100 border-neutral-300 font-semibold text-neutral-900'
-                                  : 'bg-white border-neutral-200 text-neutral-500 hover:border-neutral-400'
-                              }`}
-                              title="Link this photo to a variant"
-                            >
-                              <option value="">Link Variant...</option>
-                              {form.colours.map(c => (
-                                <option key={c.id} value={c.id}>
-                                  {c.name}
-                                </option>
-                              ))}
-                            </select>
+                              options={[
+                                { value: '', label: 'Link Variant...' },
+                                ...form.colours.map(c => ({ value: c.id, label: c.name }))
+                              ]}
+                              buttonClassName="py-0.5 px-1 text-[9px] font-mono bg-white border-neutral-200"
+                            />
                           </div>
                         </div>
                       );
@@ -1064,13 +1142,25 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
                     ))}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleApplyStandardSizes}
-                    className="text-[10px] font-mono uppercase tracking-wider text-neutral-700 hover:text-black hover:underline cursor-pointer font-medium"
-                  >
-                    Reset to Standard (S, M, L, XL)
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleRecalculateAllWeights}
+                      className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-neutral-700 hover:text-black hover:underline cursor-pointer font-medium"
+                      title="Apply current store weight formula to all sizes"
+                    >
+                      <Scale className="w-3 h-3 text-neutral-500" />
+                      <span>Recalculate Weights</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleApplyStandardSizes}
+                      className="text-[10px] font-mono uppercase tracking-wider text-neutral-700 hover:text-black hover:underline cursor-pointer font-medium"
+                    >
+                      Reset to Standard (S, M, L, XL)
+                    </button>
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -1088,18 +1178,19 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
                     <tbody className="divide-y divide-neutral-100 font-mono">
                       {form.sizes.map((size, idx) => (
                         <tr key={size.id || idx}>
-                          <td className="py-2 pr-2 w-28">
-                            <select
+                          <td className="py-2 pr-2 w-32">
+                            <CustomSelect
                               value={size.label}
-                              onChange={e => handleUpdateSize(idx, 'label', e.target.value)}
-                              className="w-full border border-neutral-200 rounded-sm px-2 py-1 text-[11px] font-mono font-bold focus:outline-black bg-white"
-                            >
-                              <option value="S">S (Small)</option>
-                              <option value="M">M (Medium)</option>
-                              <option value="L">L (Large)</option>
-                              <option value="XL">XL (Extra Large)</option>
-                              <option value="Custom">Custom</option>
-                            </select>
+                              onChange={val => handleUpdateSize(idx, 'label', val)}
+                              options={[
+                                { value: 'S', label: 'S (Small)' },
+                                { value: 'M', label: 'M (Medium)' },
+                                { value: 'L', label: 'L (Large)' },
+                                { value: 'XL', label: 'XL (Extra Large)' },
+                                { value: 'Custom', label: 'Custom' },
+                              ]}
+                              buttonClassName="py-1 px-2 text-[11px] font-mono font-bold bg-white border-neutral-200"
+                            />
                           </td>
                           <td className="py-2 pr-2 w-20">
                             <input
@@ -1529,6 +1620,38 @@ export const ProductEditForm: React.FC<ProductEditFormProps> = ({ productId }) =
           </div>
         );
       })()}
+
+      {/* Sticky Bottom Bar for Quick Saving & Refreshed State Visibility */}
+      <div className="sticky bottom-4 z-40 bg-neutral-900/90 text-white backdrop-blur-md px-6 py-3.5 rounded-2xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3 border border-neutral-700/50">
+        <div className="flex items-center gap-2 text-xs text-neutral-300">
+          <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span>Changes are saved permanently · Press <kbd className="px-1.5 py-0.5 bg-neutral-800 rounded text-[10px] font-mono text-neutral-200">⌘S</kbd> / <kbd className="px-1.5 py-0.5 bg-neutral-800 rounded text-[10px] font-mono text-neutral-200">Ctrl+S</kbd> to publish</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="px-4 py-1.5 text-[11px] uppercase tracking-wider font-medium text-neutral-300 hover:text-white transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSave(undefined, false)}
+            className="px-4 py-1.5 text-[11px] uppercase tracking-wider font-medium rounded-full bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-600 transition-colors cursor-pointer"
+          >
+            Save Draft
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSave(undefined, true)}
+            className="inline-flex items-center gap-2 px-5 py-1.5 text-[11px] uppercase tracking-wider font-semibold rounded-full bg-white text-black hover:bg-neutral-100 transition-colors shadow-sm cursor-pointer"
+          >
+            <Check className="w-3.5 h-3.5" />
+            <span>Publish Changes</span>
+          </button>
+        </div>
+      </div>
     </form>
   );
 };
