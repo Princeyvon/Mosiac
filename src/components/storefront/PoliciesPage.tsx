@@ -3,7 +3,7 @@ import { useStore } from '../../context/StoreContext';
 import { ArrowLeft, Shield, Truck, RotateCcw, Cookie, Lock, Mail, Info, Search, CheckCircle, Clock } from 'lucide-react';
 
 export const PoliciesPage: React.FC = () => {
-  const { orders, formatPrice, policies } = useStore();
+  const { orders, formatPrice, policies, cookieConsent, setCookieConsent, showToast } = useStore();
   const [activeTab, setActiveTab] = useState<'legal' | 'orders' | 'privacy' | 'cookies' | 'shipping' | 'returns' | 'about' | 'contact'>('legal');
 
   // Interactive Order Lookup state
@@ -277,23 +277,167 @@ export const PoliciesPage: React.FC = () => {
             {/* 6. Cookies */}
             {activeTab === 'cookies' && (
               <div className="space-y-6">
-                <h2 className="text-xl font-serif uppercase tracking-wider text-neutral-900 border-b border-neutral-100 pb-3">
-                  Cookie Policy & Preferences
-                </h2>
+                <div className="border-b border-neutral-100 pb-3">
+                  <h2 className="text-xl font-serif uppercase tracking-wider text-neutral-900">
+                    Cookie Policy & Local Storage Disclosures
+                  </h2>
+                  <p className="text-[11px] text-neutral-400 font-mono mt-1">
+                    Last updated: September 2026 · Compliant with GDPR, UK PECR, & CCPA
+                  </p>
+                </div>
+
                 <div className="space-y-4 text-xs text-neutral-600 leading-relaxed font-light">
                   <p>
                     {getPolicyContent(
                       'cookies',
-                      'Mosiac uses strictly necessary local storage cookies to retain your shopping bag contents, selected studio currency, and catalogue grid density preferences across sessions.'
+                      'Mosiac operates on principles of digital minimalism and data discretion. We do not sell, rent, or trade client telemetry. This policy explains how we utilize HTTP cookies and browser LocalStorage technologies to deliver a seamless atelier shopping experience.'
                     )}
                   </p>
-                  <div className="p-4 rounded-sm bg-neutral-50 border border-neutral-200 flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-semibold text-neutral-900 uppercase tracking-wider">Catalogue Experience Cookies</div>
-                      <div className="text-[11px] text-neutral-500">Saves active currency ({formatPrice(100)}) and grid column preferences.</div>
+
+                  {/* Interactive Preference Controls Card */}
+                  <div className="p-5 rounded-sm bg-neutral-50 border border-neutral-200 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-200 pb-3">
+                      <div>
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-neutral-500 block">
+                          Current Consent Status
+                        </span>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span
+                            className={`w-2 h-2 rounded-full ${
+                              cookieConsent === 'accepted'
+                                ? 'bg-emerald-500'
+                                : cookieConsent === 'rejected'
+                                ? 'bg-amber-500'
+                                : 'bg-blue-500'
+                            }`}
+                          />
+                          <span className="text-xs font-semibold text-neutral-900">
+                            {cookieConsent === 'accepted'
+                              ? 'All Cookies & Local Storage Authorized'
+                              : cookieConsent === 'rejected'
+                              ? 'Strictly Necessary Only (Non-Essential Declined)'
+                              : 'Default Notice Active (Undecided)'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <span className="text-[10px] font-mono text-neutral-400">
+                        Identifier: client-session-{typeof window !== 'undefined' ? (window.navigator.userAgent.length * 42) : '3892'}
+                      </span>
                     </div>
-                    <span className="text-[10px] uppercase font-mono px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-sm font-semibold">Active</span>
+
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCookieConsent('accepted');
+                          showToast('Cookie preferences updated: All Authorized');
+                        }}
+                        className={`px-3.5 py-1.5 text-[11px] uppercase tracking-wider font-semibold rounded-xs transition-colors cursor-pointer ${
+                          cookieConsent === 'accepted'
+                            ? 'bg-black text-white'
+                            : 'bg-white border border-neutral-300 hover:border-black text-neutral-800'
+                        }`}
+                      >
+                        Authorize All
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCookieConsent('rejected');
+                          showToast('Cookie preferences updated: Essential Only');
+                        }}
+                        className={`px-3.5 py-1.5 text-[11px] uppercase tracking-wider font-medium rounded-xs transition-colors cursor-pointer ${
+                          cookieConsent === 'rejected'
+                            ? 'bg-black text-white'
+                            : 'bg-white border border-neutral-300 hover:border-black text-neutral-800'
+                        }`}
+                      >
+                        Essential Only (Decline Analytics)
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCookieConsent(null);
+                          showToast('Cookie preferences reset: Banner opened');
+                        }}
+                        className="px-3.5 py-1.5 text-[11px] uppercase tracking-wider text-neutral-500 hover:text-black underline cursor-pointer"
+                      >
+                        Reset & Show Banner
+                      </button>
+                    </div>
                   </div>
+
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-900 pt-3">
+                    1. Categorization of Storage Technologies Used
+                  </h3>
+
+                  <div className="overflow-x-auto border border-neutral-200 rounded-sm">
+                    <table className="w-full text-left text-[11px]">
+                      <thead className="bg-neutral-100 text-neutral-600 uppercase tracking-wider border-b border-neutral-200">
+                        <tr>
+                          <th className="p-2.5 font-semibold">Key / Cookie Name</th>
+                          <th className="p-2.5 font-semibold">Category</th>
+                          <th className="p-2.5 font-semibold">Purpose</th>
+                          <th className="p-2.5 font-semibold">Duration</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-100 text-neutral-700">
+                        <tr>
+                          <td className="p-2.5 font-mono text-neutral-900 font-medium">mosiac_cart</td>
+                          <td className="p-2.5 text-emerald-800 font-medium">Strictly Necessary</td>
+                          <td className="p-2.5">Stores selected bespoke rug models, chosen dimensions, colorways, and quantities.</td>
+                          <td className="p-2.5 font-mono">Persistent (Local)</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2.5 font-mono text-neutral-900 font-medium">mosiac_currency</td>
+                          <td className="p-2.5 text-emerald-800 font-medium">Functional / Essential</td>
+                          <td className="p-2.5">Remembers client currency selection (USD, EUR, GBP, JPY, CHF, etc.) for live pricing.</td>
+                          <td className="p-2.5 font-mono">Persistent (Local)</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2.5 font-mono text-neutral-900 font-medium">mosiac_cookies</td>
+                          <td className="p-2.5 text-emerald-800 font-medium">Legal Compliance</td>
+                          <td className="p-2.5">Records your acceptance or refusal of non-essential technologies under GDPR Art. 7.</td>
+                          <td className="p-2.5 font-mono">12 Months</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2.5 font-mono text-neutral-900 font-medium">mosiac_grid_density</td>
+                          <td className="p-2.5 text-blue-800 font-medium">Preference / UI</td>
+                          <td className="p-2.5">Maintains your preferred catalogue presentation (4 vs 6 cards per row).</td>
+                          <td className="p-2.5 font-mono">Persistent (Local)</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2.5 font-mono text-neutral-900 font-medium">mosiac_dismissed_promo</td>
+                          <td className="p-2.5 text-blue-800 font-medium">Preference / UI</td>
+                          <td className="p-2.5">Ensures promotional notifications are not shown repeatedly during the same session.</td>
+                          <td className="p-2.5 font-mono">Session</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2.5 font-mono text-neutral-900 font-medium">mosiac_admin_auth</td>
+                          <td className="p-2.5 text-purple-800 font-medium">Staff Security</td>
+                          <td className="p-2.5">Stores encrypted authentication token for authorized studio management team.</td>
+                          <td className="p-2.5 font-mono">Session / Local</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-900 pt-3">
+                    2. Third-Party Content Delivery & Media Networks
+                  </h3>
+                  <p>
+                    To render high-resolution architectural photography with zero latency, Mosiac relies on global Content Delivery Networks (CDNs) including Unsplash and Cloudflare. These services process transient IP headers solely to deliver cryptographic assets and do not track your identity across non-affiliated domains.
+                  </p>
+
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-900 pt-3">
+                    3. Right to Withdraw Consent & Clear Data
+                  </h3>
+                  <p>
+                    You retain the absolute right under GDPR Article 7(3) and CCPA §1798.120 to withdraw your consent at any moment. You can click the "Reset & Show Banner" button above or access your browser's Developer Tools (Application &gt; Storage &gt; Local Storage) to purge all stored keys instantly.
+                  </p>
                 </div>
               </div>
             )}

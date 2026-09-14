@@ -148,7 +148,7 @@ interface StoreContextType {
 
   // Cookie banner
   cookieConsent: 'accepted' | 'rejected' | null;
-  setCookieConsent: (consent: 'accepted' | 'rejected') => void;
+  setCookieConsent: (consent: 'accepted' | 'rejected' | null) => void;
 
   // Global Modals
   activeModal: 'contact' | 'policies' | 'journal' | 'faq' | 'checkout' | null;
@@ -1476,10 +1476,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   });
 
-  const setCookieConsent = (val: 'accepted' | 'rejected') => {
+  const setCookieConsent = (val: 'accepted' | 'rejected' | null) => {
     setCookieConsentState(val);
     try {
-      localStorage.setItem(STORAGE_KEYS.COOKIES, val);
+      if (val === null) {
+        localStorage.removeItem(STORAGE_KEYS.COOKIES);
+      } else {
+        localStorage.setItem(STORAGE_KEYS.COOKIES, val);
+      }
     } catch {}
   };
 

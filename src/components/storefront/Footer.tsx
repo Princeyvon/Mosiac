@@ -3,7 +3,7 @@ import { useStore } from '../../context/StoreContext';
 import { LayoutDashboard, Receipt } from 'lucide-react';
 
 export const Footer: React.FC = () => {
-  const { navigateToDash, navigateToStore, navigateToPolicies, navigateToReceipt, orders } = useStore();
+  const { navigateToDash, navigateToStore, navigateToPolicies, navigateToReceipt, orders, setCookieConsent } = useStore();
 
   const handleOpenReceipt = () => {
     const targetOrderId = orders[0]?.id || 'ORD-9021';
@@ -23,7 +23,7 @@ export const Footer: React.FC = () => {
         </button>
 
         {/* Links formatted responsively for mobile and desktop */}
-        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-neutral-500">
+        <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-5 text-neutral-500">
           <button
             type="button"
             onClick={handleOpenReceipt}
@@ -43,6 +43,17 @@ export const Footer: React.FC = () => {
           >
             <span className="sm:hidden">Terms & Policies</span>
             <span className="hidden sm:inline">Terms, Conditions & Policies</span>
+          </button>
+
+          <span className="text-neutral-300 select-none" aria-hidden="true">/</span>
+
+          <button
+            type="button"
+            onClick={() => setCookieConsent(null)}
+            className="hover:text-black transition-colors cursor-pointer py-1"
+            title="Manage Cookie Preferences"
+          >
+            <span>Cookies</span>
           </button>
 
           <span className="text-neutral-300 select-none" aria-hidden="true">/</span>

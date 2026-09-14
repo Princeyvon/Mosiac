@@ -92,57 +92,60 @@ export const CartPage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
             {/* Left Column: Cart Table */}
             <div className="lg:col-span-7 xl:col-span-8">
-              {/* Table Column Headers */}
-              <div className="grid grid-cols-12 pb-3 border-b border-neutral-200 text-[10px] sm:text-[11px] uppercase tracking-[0.16em] text-neutral-400 font-medium">
-                <div className="col-span-5 sm:col-span-5">Product</div>
-                <div className="col-span-3 sm:col-span-3 text-center sm:text-left">Size</div>
-                <div className="col-span-2 sm:col-span-2 text-center">Quantity</div>
-                <div className="col-span-2 sm:col-span-2 text-right">Total Price</div>
-              </div>
+              <div className="overflow-x-auto pb-2 sm:pb-0">
+                <div className="min-w-[480px] sm:min-w-0">
+                  {/* Table Column Headers */}
+                <div className="grid grid-cols-12 pb-3 border-b border-neutral-200 text-[10px] sm:text-[11px] uppercase tracking-[0.16em] text-neutral-400 font-medium">
+                  <div className="col-span-5 sm:col-span-5">Product</div>
+                  <div className="col-span-3 sm:col-span-3 text-center sm:text-left">Size</div>
+                  <div className="col-span-2 sm:col-span-2 text-center">Quantity</div>
+                  <div className="col-span-2 sm:col-span-2 text-right">Total Price</div>
+                </div>
 
-              {/* Items List */}
-              <div className="divide-y divide-neutral-100">
-                {cart.map((item, idx) => {
-                  const product = products.find(p => p.id === item.productId);
-                  if (!product) return null;
+                {/* Items List */}
+                <div className="divide-y divide-neutral-100">
+                  {cart.map((item, idx) => {
+                    const product = products.find(p => p.id === item.productId);
+                    if (!product) return null;
 
-                  const currentSize = product.sizes.find(s => s.id === item.sizeId) || product.sizes[0];
-                  const itemPrice = currentSize ? currentSize.price : product.fromPrice;
-                  const itemTotal = itemPrice * item.quantity;
+                    const currentSize = product.sizes.find(s => s.id === item.sizeId) || product.sizes[0];
+                    const itemPrice = currentSize ? currentSize.price : product.fromPrice;
+                    const itemTotal = itemPrice * item.quantity;
 
-                  return (
-                    <div key={`${item.productId}-${item.sizeId}-${item.colorName}-${idx}`} className="py-4 sm:py-5 grid grid-cols-12 items-center gap-2">
-                      {/* Product Thumbnail & Title */}
-                      <div className="col-span-5 sm:col-span-5 flex items-center gap-3 sm:gap-4">
-                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-sm bg-neutral-100 overflow-hidden flex items-center justify-center shrink-0 p-1.5">
-                          <img
-                            src={product.cardImage}
-                            alt={product.name}
-                            className="w-full h-full object-contain"
+                    return (
+                      <div key={`${item.productId}-${item.sizeId}-${item.colorName}-${idx}`} className="py-4 sm:py-5 grid grid-cols-12 items-center gap-2">
+                        {/* Product Thumbnail & Title */}
+                        <div className="col-span-5 sm:col-span-5 flex items-center gap-3 sm:gap-4">
+                          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-sm bg-neutral-100 overflow-hidden flex items-center justify-center shrink-0 p-1.5">
+                            <img
+                              src={product.cardImage}
+                              alt={product.name}
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                          <div className="min-w-0 pr-1">
+                            <div className="text-xs sm:text-sm font-medium text-neutral-900 truncate font-serif">
+                              {product.name}
+                            </div>
+                            <div className="text-[11px] text-neutral-400 truncate mt-0.5">
+                              {item.colorName}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Size Selector Dropdown */}
+                        <div className="col-span-3 sm:col-span-3 flex justify-center sm:justify-start min-w-0 sm:min-w-[110px]">
+                          <CustomSelect
+                            value={item.sizeId}
+                            onChange={(val) => updateCartItemSize(idx, val)}
+                            options={product.sizes.map(s => ({
+                              value: s.id,
+                              label: s.label
+                            }))}
+                            buttonClassName="py-1 px-2 sm:px-2.5 text-[10px] sm:text-[11px] bg-neutral-50 hover:bg-neutral-100 border-neutral-200 truncate"
+                            menuClassName="min-w-[120px] sm:min-w-[160px]"
                           />
                         </div>
-                        <div className="min-w-0 pr-1">
-                          <div className="text-xs sm:text-sm font-medium text-neutral-900 truncate font-serif">
-                            {product.name}
-                          </div>
-                          <div className="text-[11px] text-neutral-400 truncate mt-0.5">
-                            {item.colorName}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Size Selector Dropdown */}
-                      <div className="col-span-3 sm:col-span-3 flex justify-center sm:justify-start min-w-[130px]">
-                        <CustomSelect
-                          value={item.sizeId}
-                          onChange={(val) => updateCartItemSize(idx, val)}
-                          options={product.sizes.map(s => ({
-                            value: s.id,
-                            label: s.label
-                          }))}
-                          buttonClassName="py-1 px-2.5 text-[11px] bg-neutral-50 hover:bg-neutral-100 border-neutral-200"
-                        />
-                      </div>
 
                       {/* Quantity Stepper */}
                       <div className="col-span-2 sm:col-span-2 flex items-center justify-center gap-1.5 sm:gap-2">
@@ -184,6 +187,8 @@ export const CartPage: React.FC = () => {
                     </div>
                   );
                 })}
+              </div>
+              </div>
               </div>
 
               {/* Promo Code Entry & Subtotal */}

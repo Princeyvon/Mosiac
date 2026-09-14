@@ -245,25 +245,26 @@ export const ReceiptView: React.FC = () => {
       </div>
 
       {/* 2. TOP FLOATING CONTROL BAR */}
-      <header className="sticky top-0 z-40 bg-slate-950/60 backdrop-blur-xl border-b border-white/10 px-4 sm:px-8 py-3.5 flex items-center justify-between print:hidden">
-        <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-40 bg-slate-950/60 backdrop-blur-xl border-b border-white/10 px-3 sm:px-8 py-3 flex items-center justify-between gap-2 print:hidden">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
             type="button"
             onClick={navigateToStore}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-medium tracking-tight transition-colors cursor-pointer border border-white/10"
+            className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-medium tracking-tight transition-colors cursor-pointer border border-white/10 shrink-0"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Return to Store</span>
+            <span className="hidden sm:inline">Return to Store</span>
+            <span className="sm:hidden">Store</span>
           </button>
 
           <span className="hidden sm:inline-block text-white/40 text-xs">·</span>
-          <span className="hidden sm:inline-block text-white/70 text-xs tracking-tight font-serif italic">
+          <span className="hidden sm:inline-block text-white/70 text-xs tracking-tight font-serif italic truncate">
             Mosiac Digital Client Receipt & Pass
           </span>
         </div>
 
         {/* Right utility buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Atmosphere Randomizer */}
           <button
             type="button"
@@ -279,17 +280,18 @@ export const ReceiptView: React.FC = () => {
           <button
             type="button"
             onClick={handleCopyLink}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-colors cursor-pointer border border-white/10 shadow-sm"
+            className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-colors cursor-pointer border border-white/10 shadow-sm"
           >
             {linkCopied ? (
               <>
                 <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-300">Link Copied</span>
+                <span className="text-emerald-300">Copied</span>
               </>
             ) : (
               <>
                 <Copy className="w-3.5 h-3.5 text-white/80" />
-                <span>Copy Unique Link</span>
+                <span className="hidden sm:inline">Copy Unique Link</span>
+                <span className="sm:hidden">Share</span>
               </>
             )}
           </button>
@@ -298,10 +300,11 @@ export const ReceiptView: React.FC = () => {
           <button
             type="button"
             onClick={handleDownloadPDF}
-            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white text-black hover:bg-neutral-200 text-xs font-semibold tracking-tight transition-colors cursor-pointer shadow-md"
+            className="inline-flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-1.5 rounded-full bg-white text-black hover:bg-neutral-200 text-xs font-semibold tracking-tight transition-colors cursor-pointer shadow-md"
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>Download PDF</span>
+            <span className="hidden sm:inline">Download PDF</span>
+            <span className="sm:hidden">PDF</span>
           </button>
         </div>
       </header>
