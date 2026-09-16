@@ -9,6 +9,7 @@ import {
   StorefrontFilter,
   PromoPopupConfig,
   AppliedPromo,
+  PromoLead,
   PolicySection,
   TeamMember,
   TeamPermissions,
@@ -91,12 +92,20 @@ interface StoreContextType {
   cartPromoDiscountUSD: number;
   cartFinalTotalUSD: number;
 
-  // Promo Popup
+  // Promo Popup & Leads
   promoPopupConfig: PromoPopupConfig;
   updatePromoPopupConfig: (config: Partial<PromoPopupConfig>) => void;
   showPromoPopup: boolean;
   setShowPromoPopup: (show: boolean) => void;
   triggerPromoPreview: () => void;
+  promoLeads: PromoLead[];
+  claimPromoDiscount: (contact: { name: string; email: string; phone: string; code?: string }) => {
+    success: boolean;
+    message: string;
+    leadId: string;
+  };
+  updateLeadStatus: (leadId: string, status: 'Claimed' | 'Redeemed' | 'Contacted') => void;
+  deletePromoLead: (leadId: string) => void;
 
   // Policies
   policies: PolicySection[];
@@ -193,6 +202,7 @@ const STORAGE_KEYS = {
   ACTIVE_TM_ID: 'mosiac_active_tm_id_v1',
   ORDERS: 'mosiac_orders_v2',
   RECEIPT_ID: 'mosiac_receipt_id_v1',
+  PROMO_LEADS: 'mosiac_promo_leads_v1',
 };
 
 export const DEFAULT_ROLE_PERMISSIONS: Record<string, TeamPermissions> = {
@@ -598,6 +608,39 @@ const INITIAL_PROMO_CONFIG: PromoPopupConfig = {
   filterTag: undefined
 };
 
+const INITIAL_PROMO_LEADS: PromoLead[] = [
+  {
+    id: 'lead-101',
+    name: 'Amina Uwase',
+    email: 'amina.uwase@kigalidesign.rw',
+    phone: '+250 788 123 456',
+    code: 'RWF25K',
+    creditClaimed: '25,000 Rwf',
+    claimedAt: 'Sep 14, 2026, 11:20 AM',
+    status: 'Claimed'
+  },
+  {
+    id: 'lead-102',
+    name: 'Jean-Paul Habimana',
+    email: 'jp.habimana@arch-kigali.com',
+    phone: '+250 782 987 654',
+    code: 'RWF25K',
+    creditClaimed: '25,000 Rwf',
+    claimedAt: 'Sep 15, 2026, 04:45 PM',
+    status: 'Claimed'
+  },
+  {
+    id: 'lead-103',
+    name: 'Sonia Mukamana',
+    email: 'sonia@atelier-east.rw',
+    phone: '+250 789 555 321',
+    code: 'RWF25K',
+    creditClaimed: '25,000 Rwf',
+    claimedAt: 'Sep 16, 2026, 09:15 AM',
+    status: 'Claimed'
+  }
+];
+
 const INITIAL_ORDERS: Order[] = [
   {
     id: 'ORD-9021',
@@ -828,6 +871,7 @@ const sanitizeProduct = (p: any): Product => {
     featuredOrder: typeof p.featuredOrder === 'number' ? p.featuredOrder : undefined,
     seoTitle: p.seoTitle || '',
     seoDescription: p.seoDescription || '',
+    updatedAt: typeof p.updatedAt === 'number' ? p.updatedAt : undefined,
   };
 };
 
@@ -862,6 +906,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   // Hydrate from IndexedDB in case localStorage was full, purged, or restricted
+  // Only overwrites if IndexedDB has newer timestamps than memory/localStorage
   useEffect(() => {
     let active = true;
     async function hydrate() {
@@ -872,10 +917,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         ]);
         if (!active) return;
         if (Array.isArray(idbLive) && idbLive.length > 0) {
-          setProducts(idbLive.map(sanitizeProduct));
+          setProducts(prev => {
+            const prevMax = Math.max(0, ...prev.map(p => p.updatedAt || 0));
+            const idbMax = Math.max(0, ...idbLive.map(p => p.updatedAt || 0));
+            if (idbMax > prevMax) {
+              return idbLive.map(sanitizeProduct);
+            }
+            return prev;
+          });
         }
         if (Array.isArray(idbStaged) && idbStaged.length > 0) {
-          setStagedProducts(idbStaged.map(sanitizeProduct));
+          setStagedProducts(prev => {
+            const prevMax = Math.max(0, ...prev.map(p => p.updatedAt || 0));
+            const idbMax = Math.max(0, ...idbStaged.map(p => p.updatedAt || 0));
+            if (idbMax > prevMax) {
+              return idbStaged.map(sanitizeProduct);
+            }
+            return prev;
+          });
         }
       } catch (err) {
         console.warn('IndexedDB initial hydration skipped:', err);
@@ -1008,11 +1067,40 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Custom Rug Pop-up state (45-sec trigger to Instagram DM)
   const [showCustomRugPopup, setShowCustomRugPopup] = useState(false);
 
-  // Promo Pop-up Configuration
+  // Promo Pop-up Configuration (Defaults to 25,000 Rwf credit and auto-migrates any legacy 70% cache)
   const [promoPopupConfig, setPromoPopupConfig] = useState<PromoPopupConfig>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.PROMO_CONFIG);
-      return saved ? JSON.parse(saved) : INITIAL_PROMO_CONFIG;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // If stale 70% offer or missing fixed 25,000 Rwf credit, upgrade automatically
+        const isStale =
+          !parsed.discountAmountRWF ||
+          parsed.discountAmountRWF !== 25000 ||
+          (typeof parsed.headline === 'string' &&
+            (parsed.headline.includes('70%') || parsed.headline.includes('70 percent')));
+
+        if (isStale) {
+          const upgraded: PromoPopupConfig = {
+            ...INITIAL_PROMO_CONFIG,
+            ...parsed,
+            headline: 'Enjoy 25,000 Rwf Free Credit on Your First Order',
+            subtext: 'Enter your contact details to claim your complimentary 25,000 Rwf studio credit applied directly at checkout on your first bespoke rug or studio piece.',
+            buttonText: 'Claim 25,000 Rwf Credit',
+            discountCode: 'RWF25K',
+            discountAmountRWF: 25000,
+            creditType: 'fixed_rwf',
+            badgeText: 'Welcome Gift',
+            eyebrow: 'EXCLUSIVE FIRST PURCHASE OFFER'
+          };
+          try {
+            localStorage.setItem(STORAGE_KEYS.PROMO_CONFIG, JSON.stringify(upgraded));
+          } catch {}
+          return upgraded;
+        }
+        return parsed;
+      }
+      return INITIAL_PROMO_CONFIG;
     } catch {
       return INITIAL_PROMO_CONFIG;
     }
@@ -1032,6 +1120,87 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const triggerPromoPreview = () => {
     setShowPromoPopup(true);
+  };
+
+  // Promo Leads & Contact Capture (Name, Email & Phone)
+  const [promoLeads, setPromoLeads] = useState<PromoLead[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.PROMO_LEADS);
+      return saved ? JSON.parse(saved) : INITIAL_PROMO_LEADS;
+    } catch {
+      return INITIAL_PROMO_LEADS;
+    }
+  });
+
+  const claimPromoDiscount = (contact: { name: string; email: string; phone: string; code?: string }) => {
+    const codeToUse = (contact.code || promoPopupConfig.discountCode || 'RWF25K').trim().toUpperCase();
+    const newLead: PromoLead = {
+      id: 'lead-' + Date.now(),
+      name: contact.name.trim() || 'Valued Guest',
+      email: contact.email.trim(),
+      phone: contact.phone.trim(),
+      code: codeToUse,
+      creditClaimed: '25,000 Rwf',
+      claimedAt: new Date().toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      status: 'Claimed'
+    };
+
+    setPromoLeads(prev => {
+      const next = [newLead, ...prev];
+      try {
+        localStorage.setItem(STORAGE_KEYS.PROMO_LEADS, JSON.stringify(next));
+      } catch {}
+      setPersistentItem(STORAGE_KEYS.PROMO_LEADS, next);
+      return next;
+    });
+
+    // Automatically apply promo code to active cart & checkout session
+    applyPromoCode(codeToUse);
+
+    // Record in Studio audit log
+    setAuditLogs(prev => [
+      {
+        id: 'log-' + Date.now(),
+        action: 'Claimed 25,000 Rwf Promo Credit',
+        target: `${newLead.name} (${newLead.phone || newLead.email})`,
+        user: 'Storefront Visitor',
+        timestamp: 'Just now'
+      },
+      ...prev
+    ]);
+
+    showToast(`25,000 Rwf credit unlocked for ${newLead.name}!`);
+    return { success: true, message: '25,000 Rwf credit claimed!', leadId: newLead.id };
+  };
+
+  const updateLeadStatus = (leadId: string, status: 'Claimed' | 'Redeemed' | 'Contacted') => {
+    setPromoLeads(prev => {
+      const next = prev.map(l => (l.id === leadId ? { ...l, status } : l));
+      try {
+        localStorage.setItem(STORAGE_KEYS.PROMO_LEADS, JSON.stringify(next));
+      } catch {}
+      setPersistentItem(STORAGE_KEYS.PROMO_LEADS, next);
+      return next;
+    });
+    showToast(`Lead marked as ${status}`);
+  };
+
+  const deletePromoLead = (leadId: string) => {
+    setPromoLeads(prev => {
+      const next = prev.filter(l => l.id !== leadId);
+      try {
+        localStorage.setItem(STORAGE_KEYS.PROMO_LEADS, JSON.stringify(next));
+      } catch {}
+      setPersistentItem(STORAGE_KEYS.PROMO_LEADS, next);
+      return next;
+    });
+    showToast('Promo lead removed');
   };
 
   // Auto-trigger promo pop-up after 30 seconds (or delaySeconds)
@@ -1893,25 +2062,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     id: string,
     field: 'visible' | 'soldOut' | 'featured' | 'newArrival' | 'starred'
   ) => {
+    const now = Date.now();
     const updateFn = (prev: Product[]) =>
       prev.map(p => {
         if (p.id !== id) return p;
         if (field === 'visible') {
-          return { ...p, visible: !p.visible };
+          return { ...p, visible: !p.visible, updatedAt: now };
         }
         if (field === 'soldOut') {
           const isSoldOut = p.availability === 'Sold out';
           const nextAvail: 'In stock' | 'Sold out' = isSoldOut ? 'In stock' : 'Sold out';
-          return { ...p, availability: nextAvail, fulfilment: nextAvail };
+          return { ...p, availability: nextAvail, fulfilment: nextAvail, updatedAt: now };
         }
         if (field === 'featured') {
-          return { ...p, featured: !p.featured };
+          return { ...p, featured: !p.featured, updatedAt: now };
         }
         if (field === 'newArrival') {
-          return { ...p, newArrival: !p.newArrival };
+          return { ...p, newArrival: !p.newArrival, updatedAt: now };
         }
         if (field === 'starred') {
-          return { ...p, starred: !p.starred };
+          return { ...p, starred: !p.starred, updatedAt: now };
         }
         return p;
       });
@@ -1946,7 +2116,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Save product draft / publish directly from the edit view
   const saveProductDraft = (updatedProduct: Product, publishLive: boolean = true) => {
-    const cleanProduct = sanitizeProduct(updatedProduct);
+    const cleanProduct = sanitizeProduct({
+      ...updatedProduct,
+      updatedAt: Date.now()
+    });
 
     setStagedProducts(prev => {
       const exists = prev.some(p => p.id === cleanProduct.id);
@@ -2059,7 +2232,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       visible: true,
       starred: false,
       seoTitle: 'Untitled Sculpture — FORMA Studio',
-      seoDescription: 'Handcrafted architectural sculpture from FORMA Studio.'
+      seoDescription: 'Handcrafted architectural sculpture from FORMA Studio.',
+      updatedAt: Date.now()
     };
 
     setStagedProducts(prev => {
@@ -2082,8 +2256,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Publish staged changes live to the storefront
   const publishStagedChanges = () => {
-    setProducts([...stagedProducts]);
-    setPersistentItem(STORAGE_KEYS.LIVE_PRODUCTS, stagedProducts);
+    const now = Date.now();
+    const updated = stagedProducts.map(p => ({ ...p, updatedAt: now }));
+    setProducts(updated);
+    setStagedProducts(updated);
+    setPersistentItem(STORAGE_KEYS.LIVE_PRODUCTS, updated);
+    setPersistentItem(STORAGE_KEYS.STAGED_PRODUCTS, updated);
     setAuditLogs(prev => [
       {
         id: 'log-' + Date.now(),
@@ -2164,12 +2342,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         cartPromoDiscountUSD: promoDiscountUSD,
         cartFinalTotalUSD,
 
-        // Promo Popup
+        // Promo Popup & Leads
         promoPopupConfig,
         updatePromoPopupConfig,
         showPromoPopup,
         setShowPromoPopup,
         triggerPromoPreview,
+        promoLeads,
+        claimPromoDiscount,
+        updateLeadStatus,
+        deletePromoLead,
 
         // Policies
         policies,

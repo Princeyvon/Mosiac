@@ -46,6 +46,7 @@ export interface Product {
   starred: boolean;
   seoTitle?: string;
   seoDescription?: string;
+  updatedAt?: number;
 }
 
 export interface CartItem {
@@ -138,6 +139,17 @@ export interface PromoPopupConfig {
   filterTag?: string;
   discountAmountRWF?: number;
   creditType?: 'fixed_rwf' | 'percentage';
+}
+
+export interface PromoLead {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  code: string;
+  creditClaimed: string;
+  claimedAt: string;
+  status: 'Claimed' | 'Redeemed' | 'Contacted';
 }
 
 export interface PolicySection {
