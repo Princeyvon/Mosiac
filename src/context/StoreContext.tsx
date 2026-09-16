@@ -819,6 +819,11 @@ const normalizeSizeLabel = (label: string, index: number, total: number): string
   return sequence[index] || 'M';
 };
 
+const normalizeImagePath = (image?: string): string | undefined => {
+  if (typeof image !== 'string') return image;
+  return image.startsWith('/images/') ? image.slice(1) : image;
+};
+
 const sanitizeProduct = (p: any): Product => {
   const rawSizes = Array.isArray(p.sizes) && p.sizes.length > 0 ? p.sizes : null;
   const basePrice = typeof p.fromPrice === 'number' ? p.fromPrice : 1850;
@@ -843,14 +848,14 @@ const sanitizeProduct = (p: any): Product => {
             id: c.id || `c-${idx + 1}`,
             name: c.name || `Variant ${idx + 1}`,
             hex: c.hex || '#111111',
-            image: c.image !== undefined ? c.image : (idx === 0 ? p.cardImage : undefined),
-            galleryImages: Array.isArray(c.galleryImages) ? c.galleryImages : undefined,
+            image: c.image !== undefined ? normalizeImagePath(c.image) : (idx === 0 ? normalizeImagePath(p.cardImage) : undefined),
+            galleryImages: Array.isArray(c.galleryImages) ? c.galleryImages.map(normalizeImagePath) : undefined,
           };
         })
-      : [{ id: 'c-default', name: 'Studio Finish', hex: '#222222', image: p.cardImage || 'images/uzu-slate-bronze.jpg' }],
-    cardImage: p.cardImage || 'images/uzu-slate-bronze.jpg',
-    hoverImage: p.hoverImage || undefined,
-    galleryImages: Array.isArray(p.galleryImages) && p.galleryImages.length > 0 ? p.galleryImages : [p.cardImage || 'images/uzu-slate-bronze.jpg'],
+      : [{ id: 'c-default', name: 'Studio Finish', hex: '#222222', image: normalizeImagePath(p.cardImage) || 'images/uzu-slate-bronze.jpg' }],
+    cardImage: normalizeImagePath(p.cardImage) || 'images/uzu-slate-bronze.jpg',
+    hoverImage: normalizeImagePath(p.hoverImage) || undefined,
+    galleryImages: Array.isArray(p.galleryImages) && p.galleryImages.length > 0 ? p.galleryImages.map(normalizeImagePath) : [normalizeImagePath(p.cardImage) || 'images/uzu-slate-bronze.jpg'],
     sizes: rawSizes
       ? rawSizes.map((s: any, idx: number, arr: any[]) => ({
           ...s,
