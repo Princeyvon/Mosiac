@@ -17,7 +17,8 @@ import {
   Copy,
   MessageCircle,
   Search,
-  Sparkles
+  Sparkles,
+  X
 } from 'lucide-react';
 
 interface PromoCodeItem {
@@ -467,13 +468,13 @@ export const PromoManagementView: React.FC = () => {
 
             <div>
               <label className="block text-[10px] uppercase tracking-wider font-semibold text-neutral-600 mb-1">
-                Subtext &amp; Instructions
+                Subtext &amp; Instructions (Optional)
               </label>
               <input
                 type="text"
                 value={form.subtext}
                 onChange={e => setForm(prev => ({ ...prev, subtext: e.target.value }))}
-                placeholder="e.g. Enter your contact details below to claim your complimentary 25,000 Rwf studio credit."
+                placeholder="Leave blank to keep modal minimal and uncluttered"
                 className="w-full border border-neutral-300 rounded-sm px-3 py-2 text-xs focus:outline-black bg-white"
               />
             </div>
@@ -553,7 +554,12 @@ export const PromoManagementView: React.FC = () => {
             </div>
 
             {/* Modal Mockup */}
-            <div className="bg-white text-neutral-900 rounded-sm border border-neutral-200 overflow-hidden shadow-xl text-left">
+            <div className="relative bg-white text-neutral-900 rounded-sm border border-neutral-200 overflow-hidden shadow-xl text-left">
+              {/* Top-left X preview */}
+              <div className="absolute top-2.5 left-2.5 z-20 w-6 h-6 flex items-center justify-center bg-white/95 rounded-full border border-neutral-200 text-neutral-600 shadow-xs">
+                <X className="w-3 h-3 stroke-[2]" />
+              </div>
+
               {form.imageUrl && (
                 <div className="w-full h-36 bg-neutral-100 relative overflow-hidden">
                   <img
@@ -563,7 +569,7 @@ export const PromoManagementView: React.FC = () => {
                     referrerPolicy="no-referrer"
                   />
                   {form.badgeText && (
-                    <div className="absolute top-2.5 left-2.5 bg-black text-white text-[8px] uppercase tracking-[0.2em] font-mono px-2 py-0.5 rounded-sm">
+                    <div className="absolute bottom-2.5 left-2.5 bg-black text-white text-[8px] uppercase tracking-[0.2em] font-mono px-2 py-0.5 rounded-sm">
                       {form.badgeText}
                     </div>
                   )}

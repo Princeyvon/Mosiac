@@ -22,10 +22,16 @@ import {
   PackageCheck,
   Scissors,
   Wand2,
-  Info
+  Info,
+  Search,
+  Download,
+  Loader2,
+  KeyRound
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { Order } from '../../types';
+import { ReceiptLookupForm } from './ReceiptLookupForm';
+import { exportReceiptToPdf } from '../../utils/pdfExport';
 
 // Atmosphere blur color themes that randomize on load or on user toggle
 const BLUR_PALETTES = [
@@ -70,16 +76,44 @@ const BLUR_PALETTES = [
 export const ReceiptView: React.FC = () => {
   const {
     currentReceiptOrderId,
+    isReceiptLookupOpen,
+    setIsReceiptLookupOpen,
+    openReceiptLookup,
+    validatedReceiptOrderIds,
     getOrderById,
     navigateToStore,
     formatPrice,
     orders
   } = useStore();
 
+  // Direct receipt link detection: if client was sent a unique receipt link, bypass lookup
+  const isDirectLink = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const hash = window.location.hash;
+    if (hash.startsWith('#/receipt/') && !hash.includes('/receipt/lookup')) {
+      const paramId = hash.replace('#/receipt/', '').trim();
+      if (paramId && paramId !== 'lookup') return true;
+    }
+    const searchParams = new URLSearchParams(window.location.search);
+    const qReceipt = searchParams.get('receipt');
+    if (qReceipt && qReceipt.trim()) return true;
+    return false;
+  }, []);
+
+  const isCurrentOrderValidated = useMemo(() => {
+    if (isDirectLink) return true;
+    if (!currentReceiptOrderId) return false;
+    return validatedReceiptOrderIds.includes(currentReceiptOrderId);
+  }, [isDirectLink, currentReceiptOrderId, validatedReceiptOrderIds]);
+
   // Find target order or fall back to the most recent one
   const order: Order = useMemo(() => {
     if (currentReceiptOrderId) {
       const found = getOrderById(currentReceiptOrderId);
+      if (found) return found;
+    }
+    if (validatedReceiptOrderIds.length > 0) {
+      const found = getOrderById(validatedReceiptOrderIds[validatedReceiptOrderIds.length - 1]);
       if (found) return found;
     }
     return orders[0] || {
@@ -116,7 +150,7 @@ export const ReceiptView: React.FC = () => {
         }
       ]
     };
-  }, [currentReceiptOrderId, getOrderById, orders]);
+  }, [currentReceiptOrderId, getOrderById, validatedReceiptOrderIds, orders]);
 
   // State for active auxiliary section (to avoid clogging the primary receipt)
   const [activeTab, setActiveTab] = useState<'status' | 'care' | 'returns' | 'terms' | null>(
@@ -130,6 +164,10 @@ export const ReceiptView: React.FC = () => {
   // Copied link toast state
   const [linkCopied, setLinkCopied] = useState(false);
   const [trackingCopied, setTrackingCopied] = useState(false);
+
+  // PDF Export state
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfSuccess, setPdfSuccess] = useState(false);
 
   const receiptRef = useRef<HTMLDivElement>(null);
 
@@ -161,8 +199,24 @@ export const ReceiptView: React.FC = () => {
     }
   };
 
-  const handleDownloadPDF = () => {
-    window.print();
+  const handleDownloadPDF = async () => {
+    if (!receiptRef.current) return;
+    setIsGeneratingPdf(true);
+    try {
+      const res = await exportReceiptToPdf(receiptRef.current, order);
+      if (res.success) {
+        setPdfSuccess(true);
+        setTimeout(() => setPdfSuccess(false), 3500);
+      } else {
+        // Fallback to browser print
+        window.print();
+      }
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      window.print();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const handleShuffleAtmosphere = () => {
@@ -204,6 +258,82 @@ export const ReceiptView: React.FC = () => {
       date: order.estimatedDelivery || 'In Transit'
     }
   ];
+
+  // If user opened the lookup dialog OR current order is not validated:
+  if (isReceiptLookupOpen || !isCurrentOrderValidated) {
+    return (
+      <div className="relative min-h-screen w-full bg-slate-950 text-neutral-100 font-sans selection:bg-white selection:text-black overflow-x-hidden">
+        {/* Ambient atmospheric orbs */}
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
+          <div className="absolute inset-0 bg-slate-950/70 z-10 backdrop-blur-[40px]" />
+          {currentPalette.orbs.map((orb, i) => (
+            <motion.div
+              key={`${paletteIndex}-${i}`}
+              animate={{
+                scale: [0.95, 1.15, 0.95],
+                x: [0, i % 2 === 0 ? 30 : -30, 0],
+                y: [0, i % 2 === 0 ? -25 : 25, 0],
+              }}
+              transition={{
+                duration: 10 + i * 2,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+              className={`absolute rounded-full filter blur-[95px] md:blur-[130px] ${orb.color} ${orb.size} ${orb.opacity}`}
+              style={{
+                top: orb.top,
+                left: orb.left,
+                right: orb.right,
+                bottom: orb.bottom,
+              }}
+            />
+          ))}
+          <div className="absolute inset-0 bg-[radial-gradient(#ffffff0a_1px,transparent_1px)] [background-size:24px_24px] opacity-30 z-20" />
+        </div>
+
+        {/* Minimal top bar */}
+        <header className="sticky top-0 z-40 bg-slate-950/60 backdrop-blur-xl border-b border-white/10 px-4 sm:px-8 py-3 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={navigateToStore}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-colors cursor-pointer border border-white/10"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Return to Atelier Storefront</span>
+          </button>
+
+          <span className="hidden sm:inline-block text-white/70 text-xs font-serif italic">
+            Mosiac Client Archival Registry
+          </span>
+
+          {isCurrentOrderValidated ? (
+            <button
+              type="button"
+              onClick={() => setIsReceiptLookupOpen(false)}
+              className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-colors cursor-pointer border border-white/10"
+            >
+              Cancel &amp; View Current Receipt
+            </button>
+          ) : (
+            <div className="w-16" />
+          )}
+        </header>
+
+        {/* Lookup form */}
+        <main className="relative z-10 py-10 sm:py-16 px-4 sm:px-6 flex flex-col items-center justify-center min-h-[calc(100vh-65px)]">
+          <ReceiptLookupForm
+            onSuccess={() => {
+              setIsReceiptLookupOpen(false);
+            }}
+            onCancel={() => {
+              setIsReceiptLookupOpen(false);
+            }}
+            canCancel={isCurrentOrderValidated}
+          />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen w-full bg-slate-950 text-slate-900 font-sans selection:bg-black selection:text-white overflow-x-hidden">
@@ -259,12 +389,25 @@ export const ReceiptView: React.FC = () => {
 
           <span className="hidden sm:inline-block text-white/40 text-xs">·</span>
           <span className="hidden sm:inline-block text-white/70 text-xs tracking-tight font-serif italic truncate">
-            Mosiac Digital Client Receipt & Pass
+            Mosiac Digital Client Receipt &amp; Pass
           </span>
         </div>
 
         {/* Right utility buttons */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Verify / Look Up Another Order */}
+          <button
+            type="button"
+            id="receipt-lookup-open-btn"
+            onClick={openReceiptLookup}
+            title="Look up and validate another order receipt"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-colors cursor-pointer border border-white/10"
+          >
+            <Search className="w-3.5 h-3.5 text-amber-300" />
+            <span className="hidden md:inline">Verify Another Order</span>
+            <span className="md:hidden">Lookup</span>
+          </button>
+
           {/* Atmosphere Randomizer */}
           <button
             type="button"
@@ -296,15 +439,43 @@ export const ReceiptView: React.FC = () => {
             )}
           </button>
 
-          {/* Download PDF / Print */}
+          {/* Download PDF Pass */}
           <button
             type="button"
+            id="receipt-download-pdf-btn"
             onClick={handleDownloadPDF}
-            className="inline-flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-1.5 rounded-full bg-white text-black hover:bg-neutral-200 text-xs font-semibold tracking-tight transition-colors cursor-pointer shadow-md"
+            disabled={isGeneratingPdf}
+            className="inline-flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-4 py-1.5 rounded-full bg-white text-black hover:bg-neutral-200 disabled:bg-neutral-300 text-xs font-semibold tracking-tight transition-all cursor-pointer shadow-md"
+            title="Save high-resolution archival PDF pass"
+          >
+            {isGeneratingPdf ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-black" />
+                <span className="hidden sm:inline">Generating PDF...</span>
+                <span className="sm:hidden">Saving...</span>
+              </>
+            ) : pdfSuccess ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-emerald-700 font-bold">PDF Saved!</span>
+              </>
+            ) : (
+              <>
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Save PDF Pass</span>
+                <span className="sm:hidden">Save PDF</span>
+              </>
+            )}
+          </button>
+
+          {/* Physical Browser Print */}
+          <button
+            type="button"
+            onClick={() => window.print()}
+            title="Print paper copy via browser dialog"
+            className="hidden sm:inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-colors cursor-pointer border border-white/10"
           >
             <Printer className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Download PDF</span>
-            <span className="sm:hidden">PDF</span>
           </button>
         </div>
       </header>
@@ -415,13 +586,13 @@ export const ReceiptView: React.FC = () => {
           {/* SCALLOPED PERFORATION NOTCHES (Classic boarding pass tear line) */}
           <div className="relative h-6 bg-white flex items-center justify-between overflow-hidden">
             {/* Left circular notch cutout */}
-            <div className="w-6 h-6 rounded-full bg-slate-950 -ml-3 border-r border-neutral-200 print:hidden" />
+            <div className="w-6 h-6 rounded-full bg-slate-950 -ml-3 border-r border-neutral-200 print:hidden receipt-perforation-notch" />
             
             {/* Dashed perforation line */}
             <div className="flex-1 border-b-2 border-dashed border-neutral-200 mx-1" />
             
             {/* Right circular notch cutout */}
-            <div className="w-6 h-6 rounded-full bg-slate-950 -mr-3 border-l border-neutral-200 print:hidden" />
+            <div className="w-6 h-6 rounded-full bg-slate-950 -mr-3 border-l border-neutral-200 print:hidden receipt-perforation-notch" />
           </div>
 
           {/* RECEIPT BODY */}
@@ -475,6 +646,7 @@ export const ReceiptView: React.FC = () => {
                           src={item.productImage}
                           alt={item.productName}
                           referrerPolicy="no-referrer"
+                          crossOrigin="anonymous"
                           className="w-14 h-14 rounded-xl object-cover border border-neutral-200 shrink-0 bg-neutral-100 shadow-sm"
                         />
                       ) : (

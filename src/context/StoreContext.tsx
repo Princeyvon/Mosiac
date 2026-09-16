@@ -48,7 +48,12 @@ interface StoreContextType {
   navigateToPolicies: () => void;
   navigateToDash: (tab?: string) => void;
   currentReceiptOrderId: string | null;
-  navigateToReceipt: (orderId: string) => void;
+  navigateToReceipt: (orderId?: string, options?: { directAccess?: boolean; requireValidation?: boolean }) => void;
+  openReceiptLookup: () => void;
+  isReceiptLookupOpen: boolean;
+  setIsReceiptLookupOpen: (open: boolean) => void;
+  validatedReceiptOrderIds: string[];
+  validateOrderAccess: (orderNumber: string, clientName: string) => { success: boolean; order?: Order; error?: string };
   getOrderById: (orderId: string) => Order | undefined;
   activeAdminTab: string;
   setActiveAdminTab: (tab: string) => void;
@@ -599,7 +604,7 @@ const INITIAL_PROMO_CONFIG: PromoPopupConfig = {
   badgeText: 'Welcome Gift',
   eyebrow: 'EXCLUSIVE FIRST PURCHASE OFFER',
   headline: 'Enjoy 25,000 Rwf Free Credit on Your First Order',
-  subtext: 'Receive a complimentary 25,000 Rwf studio credit applied directly at checkout on your first bespoke rug or studio piece.',
+  subtext: '',
   buttonText: 'Claim 25,000 Rwf Credit',
   discountCode: 'RWF25K',
   imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=85',
@@ -972,14 +977,51 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (typeof window !== 'undefined') {
       const hash = window.location.hash;
       if (hash.startsWith('#/receipt/')) {
-        return hash.replace('#/receipt/', '').trim();
+        const id = hash.replace('#/receipt/', '').trim();
+        if (id && id !== 'lookup') return id;
       }
       const searchParams = new URLSearchParams(window.location.search);
       const qReceipt = searchParams.get('receipt');
-      if (qReceipt) return qReceipt.trim();
-      return sessionStorage.getItem('mosiac_current_receipt_order_id') || 'ORD-9021';
+      if (qReceipt && qReceipt.trim()) return qReceipt.trim();
+      return sessionStorage.getItem('mosiac_current_receipt_order_id') || null;
     }
-    return 'ORD-9021';
+    return null;
+  });
+
+  const [validatedReceiptOrderIds, setValidatedReceiptOrderIds] = useState<string[]>(() => {
+    const list: string[] = [];
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash;
+      if (hash.startsWith('#/receipt/')) {
+        const id = hash.replace('#/receipt/', '').trim();
+        if (id && id !== 'lookup') list.push(id);
+      }
+      const searchParams = new URLSearchParams(window.location.search);
+      const qReceipt = searchParams.get('receipt');
+      if (qReceipt && qReceipt.trim()) list.push(qReceipt.trim());
+      try {
+        const saved = sessionStorage.getItem('mosiac_validated_receipt_ids');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) list.push(...parsed);
+        }
+      } catch {}
+    }
+    return Array.from(new Set(list));
+  });
+
+  const [isReceiptLookupOpen, setIsReceiptLookupOpen] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash;
+      if (hash.startsWith('#/receipt/lookup')) return true;
+      if (hash.startsWith('#/receipt/')) {
+        const id = hash.replace('#/receipt/', '').trim();
+        if (id && id !== 'lookup') return false;
+      }
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get('receipt')) return false;
+    }
+    return false;
   });
 
   const [currentProductSlug, setCurrentProductSlug] = useState<string | null>(() => {
@@ -1073,10 +1115,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const saved = localStorage.getItem(STORAGE_KEYS.PROMO_CONFIG);
       if (saved) {
         const parsed = JSON.parse(saved);
-        // If stale 70% offer or missing fixed 25,000 Rwf credit, upgrade automatically
+        // If stale 70% offer, missing fixed 25,000 Rwf credit, or legacy subtext copy, sanitize
+        const hasLegacySubtext =
+          typeof parsed.subtext === 'string' &&
+          (parsed.subtext.toLowerCase().includes('receive a complimentary 25,000') ||
+            parsed.subtext.toLowerCase().includes('enter your contact details to claim your complimentary 25,000'));
+
         const isStale =
           !parsed.discountAmountRWF ||
           parsed.discountAmountRWF !== 25000 ||
+          hasLegacySubtext ||
           (typeof parsed.headline === 'string' &&
             (parsed.headline.includes('70%') || parsed.headline.includes('70 percent')));
 
@@ -1085,7 +1133,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             ...INITIAL_PROMO_CONFIG,
             ...parsed,
             headline: 'Enjoy 25,000 Rwf Free Credit on Your First Order',
-            subtext: 'Enter your contact details to claim your complimentary 25,000 Rwf studio credit applied directly at checkout on your first bespoke rug or studio piece.',
+            subtext: hasLegacySubtext ? '' : (parsed.subtext || ''),
             buttonText: 'Claim 25,000 Rwf Credit',
             discountCode: 'RWF25K',
             discountAmountRWF: 25000,
@@ -1856,10 +1904,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const navigateToReceipt = (orderId: string) => {
-    if (!orderId) return;
+  const openReceiptLookup = () => {
+    setIsReceiptLookupOpen(true);
+    setCurrentView('receipt');
+    try {
+      sessionStorage.setItem('mosiac_current_view', 'receipt');
+      window.location.hash = '#/receipt/lookup';
+    } catch {}
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const navigateToReceipt = (
+    orderId?: string,
+    options?: { directAccess?: boolean; requireValidation?: boolean }
+  ) => {
+    if (options?.requireValidation || !orderId || orderId === 'lookup') {
+      openReceiptLookup();
+      return;
+    }
     const cleanId = orderId.trim();
     setCurrentReceiptOrderId(cleanId);
+    if (options?.directAccess !== false) {
+      setValidatedReceiptOrderIds(prev => {
+        const updated = Array.from(new Set([...prev, cleanId]));
+        try {
+          sessionStorage.setItem('mosiac_validated_receipt_ids', JSON.stringify(updated));
+        } catch {}
+        return updated;
+      });
+      setIsReceiptLookupOpen(false);
+    }
     setCurrentView('receipt');
     try {
       sessionStorage.setItem('mosiac_current_view', 'receipt');
@@ -1867,6 +1941,78 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       window.location.hash = `#/receipt/${cleanId}`;
     } catch {}
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const validateOrderAccess = (
+    orderNumber: string,
+    clientName: string
+  ): { success: boolean; order?: Order; error?: string } => {
+    const cleanOrderNum = orderNumber.trim().toLowerCase();
+    const cleanName = clientName.trim().toLowerCase();
+
+    if (!cleanOrderNum) {
+      return { success: false, error: 'Please enter your order number or reference code.' };
+    }
+    if (!cleanName) {
+      return { success: false, error: 'Please enter the client name on the order record.' };
+    }
+
+    // Match order by ID, receiptId, or numeric suffix
+    const matchingOrder = orders.find(o => {
+      const oId = o.id.toLowerCase();
+      const rId = (o.receiptId || '').toLowerCase();
+      const numOnlyOrder = oId.replace(/\D/g, '');
+      const numOnlyInput = cleanOrderNum.replace(/\D/g, '');
+
+      return (
+        oId === cleanOrderNum ||
+        rId === cleanOrderNum ||
+        (numOnlyOrder.length > 0 && numOnlyOrder === numOnlyInput) ||
+        rId.includes(cleanOrderNum) ||
+        cleanOrderNum.includes(oId)
+      );
+    });
+
+    if (!matchingOrder) {
+      return {
+        success: false,
+        error: `Order "${orderNumber.trim()}" was not found. Please verify your reference number on your confirmation.`
+      };
+    }
+
+    // Match client name
+    const orderCustomer = (matchingOrder.customerName || '').toLowerCase().trim();
+    const nameWords = cleanName.split(/[\s,.-]+/).filter(w => w.length > 1);
+    const orderWords = orderCustomer.split(/[\s,.-]+/).filter(w => w.length > 1);
+
+    const isMatch =
+      orderCustomer.includes(cleanName) ||
+      cleanName.includes(orderCustomer) ||
+      nameWords.some(w => orderWords.some(ow => ow.includes(w) || w.includes(ow)));
+
+    if (!isMatch) {
+      return {
+        success: false,
+        error: `The client name "${clientName.trim()}" does not match the commission record on file for order ${matchingOrder.id}.`
+      };
+    }
+
+    // Validated successfully
+    setCurrentReceiptOrderId(matchingOrder.id);
+    setValidatedReceiptOrderIds(prev => {
+      const updated = Array.from(new Set([...prev, matchingOrder.id]));
+      try {
+        sessionStorage.setItem('mosiac_validated_receipt_ids', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    setIsReceiptLookupOpen(false);
+    try {
+      sessionStorage.setItem('mosiac_current_receipt_order_id', matchingOrder.id);
+      window.location.hash = `#/receipt/${matchingOrder.id}`;
+    } catch {}
+
+    return { success: true, order: matchingOrder };
   };
 
   const getOrderById = (orderId: string): Order | undefined => {
@@ -2301,6 +2447,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         navigateToDash,
         currentReceiptOrderId,
         navigateToReceipt,
+        openReceiptLookup,
+        isReceiptLookupOpen,
+        setIsReceiptLookupOpen,
+        validatedReceiptOrderIds,
+        validateOrderAccess,
         getOrderById,
         activeAdminTab,
         setActiveAdminTab,

@@ -90,29 +90,29 @@ export const PromoPopup: React.FC = () => {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 12 }}
         transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full max-w-lg bg-white border border-neutral-200/80 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden text-neutral-900"
+        className="relative w-full max-w-[460px] bg-white border border-neutral-200/80 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden text-neutral-900"
       >
-        {/* Dismiss Button */}
+        {/* Simple "X" in the left top corner */}
         <button
           id="promo-popup-close-btn"
           type="button"
           onClick={handleDismiss}
-          className="absolute top-4 right-4 z-20 w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-neutral-100 text-neutral-600 hover:text-black rounded-full backdrop-blur-md border border-neutral-200 transition-colors cursor-pointer"
+          className="absolute top-3.5 left-3.5 sm:top-4 sm:left-4 z-30 w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-white/95 hover:bg-white text-neutral-700 hover:text-black rounded-full backdrop-blur-md border border-neutral-200/80 shadow-xs transition-all cursor-pointer active:scale-95"
           aria-label="Close promotion dialog"
         >
-          <X className="w-4 h-4" />
+          <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2]" />
         </button>
 
         {/* Optional Header Image Banner */}
         {hasImage && !isSubmitted && (
-          <div className="w-full h-40 sm:h-44 overflow-hidden bg-neutral-100 relative">
+          <div className="w-full h-36 sm:h-44 overflow-hidden bg-neutral-100 relative">
             <img
               src={promoPopupConfig.imageUrl}
               alt={promoPopupConfig.headline || 'Studio welcome gift'}
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/10" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-black/30" />
             <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
               <span className="bg-white/95 backdrop-blur-xs text-neutral-950 text-[9px] uppercase tracking-[0.2em] font-mono px-2.5 py-1 rounded-full font-semibold shadow-xs">
                 {promoPopupConfig.badgeText || 'Welcome Gift'}
@@ -124,7 +124,7 @@ export const PromoPopup: React.FC = () => {
           </div>
         )}
 
-        <div className="p-6 sm:p-7 space-y-4">
+        <div className={`p-5 sm:p-7 space-y-3.5 sm:space-y-4 ${!hasImage ? 'pt-14 sm:pt-14' : ''}`}>
           {!isSubmitted ? (
             <>
               {!hasImage && (
@@ -141,17 +141,21 @@ export const PromoPopup: React.FC = () => {
               )}
 
               <div>
-                <h3 className="text-xl sm:text-2xl font-serif tracking-tight uppercase leading-snug text-neutral-950">
+                <h3 className="text-base sm:text-xl md:text-2xl font-serif tracking-tight uppercase leading-tight sm:leading-snug text-neutral-950 font-normal sm:font-medium">
                   {promoPopupConfig.headline || 'Enjoy 25,000 Rwf Free Credit on Your First Order'}
                 </h3>
-                <p className="text-xs text-neutral-600 font-light leading-relaxed mt-1.5">
-                  {promoPopupConfig.subtext ||
-                    'Enter your contact details below to claim your complimentary 25,000 Rwf studio credit, automatically applied to your cart at checkout.'}
-                </p>
+                {promoPopupConfig.subtext &&
+                  !promoPopupConfig.subtext.toLowerCase().includes('receive a complimentary 25,000 rwf') &&
+                  !promoPopupConfig.subtext.toLowerCase().includes('complimentary 25,000 rwf studio credit applied directly') &&
+                  !promoPopupConfig.subtext.toLowerCase().includes('enter your contact details') && (
+                    <p className="text-xs text-neutral-600 font-light leading-relaxed mt-1">
+                      {promoPopupConfig.subtext}
+                    </p>
+                )}
               </div>
 
               {/* Contact Capture Form */}
-              <form onSubmit={handleSubmitClaim} className="space-y-3 pt-1">
+              <form onSubmit={handleSubmitClaim} className="space-y-3 pt-0.5">
                 {error && (
                   <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-800 text-[11px] rounded-lg">
                     {error}
@@ -231,25 +235,18 @@ export const PromoPopup: React.FC = () => {
                   </div>
                 </div>
 
-                <p className="text-[10px] text-neutral-400 font-light">
+                <p className="text-[10px] text-neutral-400 font-light leading-normal">
                   We respect your privacy. Your contact will only be used to send your credit voucher and order updates.
                 </p>
 
-                <div className="pt-2 flex flex-col sm:flex-row items-center gap-2.5">
+                <div className="pt-1.5">
                   <button
                     id="promo-popup-claim-btn"
                     type="submit"
-                    className="w-full flex items-center justify-center gap-2 py-3 px-5 bg-black hover:bg-neutral-800 text-white text-[11px] uppercase tracking-[0.2em] font-medium rounded-xl transition-all cursor-pointer shadow-sm active:scale-[0.99]"
+                    className="w-full flex items-center justify-center gap-2 py-3 px-5 bg-neutral-950 hover:bg-neutral-800 active:bg-black text-white text-[11px] uppercase tracking-[0.2em] font-medium rounded-xl transition-all cursor-pointer shadow-sm active:scale-[0.99]"
                   >
                     <span>{promoPopupConfig.buttonText || 'Claim 25,000 Rwf Credit'}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDismiss}
-                    className="w-full sm:w-auto py-2.5 px-4 text-neutral-400 hover:text-black text-[11px] uppercase tracking-wider font-mono transition-colors cursor-pointer"
-                  >
-                    Skip
                   </button>
                 </div>
               </form>
@@ -265,7 +262,7 @@ export const PromoPopup: React.FC = () => {
                 <div className="text-[10px] uppercase font-mono tracking-[0.22em] text-emerald-600 font-semibold">
                   Credit Activated
                 </div>
-                <h3 className="text-xl sm:text-2xl font-serif uppercase tracking-tight text-neutral-950">
+                <h3 className="text-lg sm:text-xl font-serif uppercase tracking-tight text-neutral-950">
                   Welcome to Mosiac, {name || 'Collector'}!
                 </h3>
                 <p className="text-xs text-neutral-600 font-light max-w-sm mx-auto">

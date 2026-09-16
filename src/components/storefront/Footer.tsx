@@ -3,11 +3,10 @@ import { useStore } from '../../context/StoreContext';
 import { LayoutDashboard, Receipt } from 'lucide-react';
 
 export const Footer: React.FC = () => {
-  const { navigateToDash, navigateToStore, navigateToPolicies, navigateToReceipt, orders, setCookieConsent } = useStore();
+  const { navigateToDash, navigateToStore, navigateToPolicies, openReceiptLookup, setCookieConsent } = useStore();
 
   const handleOpenReceipt = () => {
-    const targetOrderId = orders[0]?.id || 'ORD-9021';
-    navigateToReceipt(targetOrderId);
+    openReceiptLookup();
   };
 
   return (
@@ -26,9 +25,10 @@ export const Footer: React.FC = () => {
         <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-5 text-neutral-500">
           <button
             type="button"
+            id="footer-client-receipt-btn"
             onClick={handleOpenReceipt}
             className="inline-flex items-center gap-1 hover:text-black transition-colors cursor-pointer py-1 text-neutral-600"
-            title="View sample client receipt"
+            title="Validate and view client order receipt"
           >
             <Receipt className="w-3.5 h-3.5 text-neutral-500" />
             <span>Client Receipt & Pass</span>
