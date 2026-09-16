@@ -249,15 +249,15 @@ function createStorageSafeCopy(val: any): any {
           const clone = { ...item };
           // If images are giant data URLs (>25KB), use placeholder or truncate for localStorage
           if (typeof clone.cardImage === 'string' && clone.cardImage.startsWith('data:') && clone.cardImage.length > 25000) {
-            clone.cardImage = '/images/uzu-slate-bronze.jpg';
+            clone.cardImage = 'images/uzu-slate-bronze.jpg';
           }
           if (typeof clone.hoverImage === 'string' && clone.hoverImage.startsWith('data:') && clone.hoverImage.length > 25000) {
-            clone.hoverImage = '/images/uzu-ivory-bronze.jpg';
+            clone.hoverImage = 'images/uzu-ivory-bronze.jpg';
           }
           if (Array.isArray(clone.galleryImages)) {
             clone.galleryImages = clone.galleryImages.map((img: any) =>
               typeof img === 'string' && img.startsWith('data:') && img.length > 25000
-                ? '/images/uzu-slate-bronze.jpg'
+                ? 'images/uzu-slate-bronze.jpg'
                 : img
             );
           }

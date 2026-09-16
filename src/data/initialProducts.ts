@@ -37,13 +37,13 @@ export const INITIAL_PRODUCTS: Product[] = [
       { id: 'c1', name: 'Slate & Bronze', hex: '#8E9296' },
       { id: 'c2', name: 'Ivory & Cognac', hex: '#E9E5DB' }
     ],
-    cardImage: '/images/uzu-slate-bronze.jpg',
-    hoverImage: '/images/uzu-ivory-bronze.jpg',
+    cardImage: 'images/uzu-slate-bronze.jpg',
+    hoverImage: 'images/uzu-ivory-bronze.jpg',
     galleryImages: [
-      '/images/uzu-slate-bronze.jpg',
-      '/images/uzu-ivory-bronze.jpg',
-      '/images/uzu-slate-bronze.jpg',
-      '/images/uzu-ivory-bronze.jpg'
+      'images/uzu-slate-bronze.jpg',
+      'images/uzu-ivory-bronze.jpg',
+      'images/uzu-slate-bronze.jpg',
+      'images/uzu-ivory-bronze.jpg'
     ],
     sizes: [
       { id: 's1', label: 'Compact (180cm Ø)', width: 180, depth: 180, price: 1850, weight: 14 },
@@ -81,13 +81,13 @@ export const INITIAL_PRODUCTS: Product[] = [
       { id: 'c1', name: 'Ivory & Cognac', hex: '#E9E5DB' },
       { id: 'c2', name: 'Slate & Bronze', hex: '#8E9296' }
     ],
-    cardImage: '/images/uzu-ivory-bronze.jpg',
-    hoverImage: '/images/uzu-slate-bronze.jpg',
+    cardImage: 'images/uzu-ivory-bronze.jpg',
+    hoverImage: 'images/uzu-slate-bronze.jpg',
     galleryImages: [
-      '/images/uzu-ivory-bronze.jpg',
-      '/images/uzu-slate-bronze.jpg',
-      '/images/uzu-ivory-bronze.jpg',
-      '/images/uzu-slate-bronze.jpg'
+      'images/uzu-ivory-bronze.jpg',
+      'images/uzu-slate-bronze.jpg',
+      'images/uzu-ivory-bronze.jpg',
+      'images/uzu-slate-bronze.jpg'
     ],
     sizes: [
       { id: 's1', label: 'Compact (180cm Ø)', width: 180, depth: 180, price: 1850, weight: 14 },
@@ -126,13 +126,13 @@ export const INITIAL_PRODUCTS: Product[] = [
       { id: 'c2', name: 'Gilded Serpent', hex: '#C8A951' },
       { id: 'c3', name: 'Bone White', hex: '#F5F3ED' }
     ],
-    cardImage: '/images/medusa-pop-art.jpg',
-    hoverImage: '/images/medusa-pop-art.jpg',
+    cardImage: 'images/medusa-pop-art.jpg',
+    hoverImage: 'images/medusa-pop-art.jpg',
     galleryImages: [
-      '/images/medusa-pop-art.jpg',
-      '/images/medusa-pop-art.jpg',
-      '/images/medusa-pop-art.jpg',
-      '/images/medusa-pop-art.jpg'
+      'images/medusa-pop-art.jpg',
+      'images/medusa-pop-art.jpg',
+      'images/medusa-pop-art.jpg',
+      'images/medusa-pop-art.jpg'
     ],
     sizes: [
       { id: 's1', label: 'Gallery (200cm Ø)', width: 200, depth: 200, price: 3600, weight: 22 },
@@ -169,13 +169,13 @@ export const INITIAL_PRODUCTS: Product[] = [
       { id: 'c1', name: 'Espresso & Sand', hex: '#39241B' },
       { id: 'c2', name: 'Crimson & Coral', hex: '#7A1526' }
     ],
-    cardImage: '/images/strata-wave-espresso.jpg',
-    hoverImage: '/images/strata-wave-crimson.jpg',
+    cardImage: 'images/strata-wave-espresso.jpg',
+    hoverImage: 'images/strata-wave-crimson.jpg',
     galleryImages: [
-      '/images/strata-wave-espresso.jpg',
-      '/images/strata-wave-crimson.jpg',
-      '/images/strata-wave-espresso.jpg',
-      '/images/strata-wave-crimson.jpg'
+      'images/strata-wave-espresso.jpg',
+      'images/strata-wave-crimson.jpg',
+      'images/strata-wave-espresso.jpg',
+      'images/strata-wave-crimson.jpg'
     ],
     sizes: [
       { id: 's1', label: 'Studio (160 x 240cm)', width: 240, depth: 160, price: 2650, weight: 26 },
@@ -213,13 +213,13 @@ export const INITIAL_PRODUCTS: Product[] = [
       { id: 'c2', name: 'Dusty Rose', hex: '#D38888' },
       { id: 'c3', name: 'Sand Rib', hex: '#E8D6C0' }
     ],
-    cardImage: '/images/dune-pleat-camel-rose.jpg',
-    hoverImage: '/images/dune-pleat-camel-rose.jpg',
+    cardImage: 'images/dune-pleat-camel-rose.jpg',
+    hoverImage: 'images/dune-pleat-camel-rose.jpg',
     galleryImages: [
-      '/images/dune-pleat-camel-rose.jpg',
-      '/images/dune-pleat-camel-rose.jpg',
-      '/images/dune-pleat-camel-rose.jpg',
-      '/images/dune-pleat-camel-rose.jpg'
+      'images/dune-pleat-camel-rose.jpg',
+      'images/dune-pleat-camel-rose.jpg',
+      'images/dune-pleat-camel-rose.jpg',
+      'images/dune-pleat-camel-rose.jpg'
     ],
     sizes: [
       { id: 's1', label: 'Gallery (170 x 240cm)', width: 240, depth: 170, price: 2900, weight: 28 },
@@ -257,13 +257,13 @@ export const INITIAL_PRODUCTS: Product[] = [
       { id: 'c2', name: 'Electric Cyan', hex: '#00A3E0' },
       { id: 'c3', name: 'Slate Grey', hex: '#78909C' }
     ],
-    cardImage: '/images/vortex-swirl-azure.jpg',
-    hoverImage: '/images/vortex-swirl-azure.jpg',
+    cardImage: 'images/vortex-swirl-azure.jpg',
+    hoverImage: 'images/vortex-swirl-azure.jpg',
     galleryImages: [
-      '/images/vortex-swirl-azure.jpg',
-      '/images/vortex-swirl-azure.jpg',
-      '/images/vortex-swirl-azure.jpg',
-      '/images/vortex-swirl-azure.jpg'
+      'images/vortex-swirl-azure.jpg',
+      'images/vortex-swirl-azure.jpg',
+      'images/vortex-swirl-azure.jpg',
+      'images/vortex-swirl-azure.jpg'
     ],
     sizes: [
       { id: 's1', label: 'Compact (180cm Ø)', width: 180, depth: 180, price: 2400, weight: 18 },
@@ -301,13 +301,13 @@ export const INITIAL_PRODUCTS: Product[] = [
       { id: 'c1', name: 'Crimson & Coral', hex: '#7A1526' },
       { id: 'c2', name: 'Espresso & Sand', hex: '#39241B' }
     ],
-    cardImage: '/images/strata-wave-crimson.jpg',
-    hoverImage: '/images/strata-wave-espresso.jpg',
+    cardImage: 'images/strata-wave-crimson.jpg',
+    hoverImage: 'images/strata-wave-espresso.jpg',
     galleryImages: [
-      '/images/strata-wave-crimson.jpg',
-      '/images/strata-wave-espresso.jpg',
-      '/images/strata-wave-crimson.jpg',
-      '/images/strata-wave-espresso.jpg'
+      'images/strata-wave-crimson.jpg',
+      'images/strata-wave-espresso.jpg',
+      'images/strata-wave-crimson.jpg',
+      'images/strata-wave-espresso.jpg'
     ],
     sizes: [
       { id: 's1', label: 'Studio (160 x 240cm)', width: 240, depth: 160, price: 2650, weight: 26 },
@@ -345,13 +345,13 @@ export const INITIAL_PRODUCTS: Product[] = [
       { id: 'c2', name: 'Sage Accent', hex: '#7D9B89' },
       { id: 'c3', name: 'Caramel Ochre', hex: '#8C5933' }
     ],
-    cardImage: '/images/ribbon-coil-emerald.jpg',
-    hoverImage: '/images/ribbon-coil-caramel.jpg',
+    cardImage: 'images/ribbon-coil-emerald.jpg',
+    hoverImage: 'images/ribbon-coil-caramel.jpg',
     galleryImages: [
-      '/images/ribbon-coil-emerald.jpg',
-      '/images/ribbon-coil-caramel.jpg',
-      '/images/ribbon-coil-emerald.jpg',
-      '/images/ribbon-coil-caramel.jpg'
+      'images/ribbon-coil-emerald.jpg',
+      'images/ribbon-coil-caramel.jpg',
+      'images/ribbon-coil-emerald.jpg',
+      'images/ribbon-coil-caramel.jpg'
     ],
     sizes: [
       { id: 's1', label: 'Gallery Runner (140 x 220cm)', width: 220, depth: 140, price: 2350, weight: 22 },
@@ -389,13 +389,13 @@ export const INITIAL_PRODUCTS: Product[] = [
       { id: 'c2', name: 'Flaxen Cream', hex: '#D8BA93' },
       { id: 'c3', name: 'Emerald Green', hex: '#1C4431' }
     ],
-    cardImage: '/images/ribbon-coil-caramel.jpg',
-    hoverImage: '/images/ribbon-coil-emerald.jpg',
+    cardImage: 'images/ribbon-coil-caramel.jpg',
+    hoverImage: 'images/ribbon-coil-emerald.jpg',
     galleryImages: [
-      '/images/ribbon-coil-caramel.jpg',
-      '/images/ribbon-coil-emerald.jpg',
-      '/images/ribbon-coil-caramel.jpg',
-      '/images/ribbon-coil-emerald.jpg'
+      'images/ribbon-coil-caramel.jpg',
+      'images/ribbon-coil-emerald.jpg',
+      'images/ribbon-coil-caramel.jpg',
+      'images/ribbon-coil-emerald.jpg'
     ],
     sizes: [
       { id: 's1', label: 'Gallery Runner (140 x 220cm)', width: 220, depth: 140, price: 2350, weight: 22 },

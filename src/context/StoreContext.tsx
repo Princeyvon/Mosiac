@@ -847,10 +847,10 @@ const sanitizeProduct = (p: any): Product => {
             galleryImages: Array.isArray(c.galleryImages) ? c.galleryImages : undefined,
           };
         })
-      : [{ id: 'c-default', name: 'Studio Finish', hex: '#222222', image: p.cardImage || '/images/uzu-slate-bronze.jpg' }],
-    cardImage: p.cardImage || '/images/uzu-slate-bronze.jpg',
+      : [{ id: 'c-default', name: 'Studio Finish', hex: '#222222', image: p.cardImage || 'images/uzu-slate-bronze.jpg' }],
+    cardImage: p.cardImage || 'images/uzu-slate-bronze.jpg',
     hoverImage: p.hoverImage || undefined,
-    galleryImages: Array.isArray(p.galleryImages) && p.galleryImages.length > 0 ? p.galleryImages : [p.cardImage || '/images/uzu-slate-bronze.jpg'],
+    galleryImages: Array.isArray(p.galleryImages) && p.galleryImages.length > 0 ? p.galleryImages : [p.cardImage || 'images/uzu-slate-bronze.jpg'],
     sizes: rawSizes
       ? rawSizes.map((s: any, idx: number, arr: any[]) => ({
           ...s,
