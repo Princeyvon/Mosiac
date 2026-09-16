@@ -268,7 +268,7 @@ export const PoliciesPage: React.FC = () => {
                   </p>
                   <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-900 pt-2">Your Privacy Rights</h3>
                   <p>
-                    You may request complete erasure of your transaction records or export your profile at any time by contacting our data protection officer at <span className="font-mono text-neutral-900">privacy@mosiac-atelier.com</span>.
+                    You may request complete erasure of your transaction records or export your profile at any time by contacting our data protection officer at <span className="font-mono text-neutral-900">privacy@rugmosiac.com</span>.
                   </p>
                 </div>
               </div>

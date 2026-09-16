@@ -117,17 +117,27 @@ export interface StorefrontFilter {
   slug: string;
 }
 
+export interface AppliedPromo {
+  code: string;
+  discountPercent?: number;
+  discountFixedUSD?: number;
+  discountFixedRWF?: number;
+  description: string;
+}
+
 export interface PromoPopupConfig {
   enabled: boolean;
   delaySeconds: number; // default 30
-  badgeText: string; // e.g. "sample sale"
-  eyebrow: string; // e.g. "ONLINE SAMPLE SALE NOW LIVE!"
-  headline: string; // e.g. "Shop up to 70% off select sample sale items!"
-  subtext: string; // e.g. "Ends September 7th."
-  buttonText: string; // e.g. "SHOP NOW!"
-  discountCode: string; // e.g. "SAMPLE70"
+  badgeText: string; // e.g. "Welcome Gift"
+  eyebrow: string; // e.g. "EXCLUSIVE FIRST PURCHASE OFFER"
+  headline: string; // e.g. "Enjoy 25,000 Rwf Free Credit on Your First Order"
+  subtext: string; // e.g. "Complimentary 25,000 Rwf studio credit applied at checkout."
+  buttonText: string; // e.g. "Claim 25,000 Rwf Credit"
+  discountCode: string; // e.g. "RWF25K"
   imageUrl: string;
   filterTag?: string;
+  discountAmountRWF?: number;
+  creditType?: 'fixed_rwf' | 'percentage';
 }
 
 export interface PolicySection {

@@ -15,6 +15,15 @@ import {
   Sliders
 } from 'lucide-react';
 
+interface PromoCodeItem {
+  code: string;
+  percent: number;
+  creditRwf?: number;
+  label: string;
+  status: string;
+  uses: number;
+}
+
 export const PromoManagementView: React.FC = () => {
   const {
     promoPopupConfig,
@@ -28,11 +37,11 @@ export const PromoManagementView: React.FC = () => {
   const [isSaved, setIsSaved] = useState(false);
 
   // Promotional discount codes list
-  const [promoCodesList, setPromoCodesList] = useState([
-    { code: 'SAMPLE70', percent: 70, label: '70% Off Sample Sale', status: 'Active', uses: 48 },
-    { code: 'MOSIAC10', percent: 10, label: '10% Off Collector Welcome', status: 'Active', uses: 94 },
-    { code: 'ARCHTRADE15', percent: 15, label: '15% Off Architectural Trade', status: 'Active', uses: 28 },
-    { code: 'STUDIOOPEN', percent: 20, label: '20% Off Launch Edition', status: 'Paused', uses: 112 },
+  const [promoCodesList, setPromoCodesList] = useState<PromoCodeItem[]>([
+    { code: 'RWF25K', percent: 0, creditRwf: 25000, label: '25,000 Rwf First Purchase Credit', status: 'Active', uses: 64 },
+    { code: 'MOSIAC10', percent: 10, creditRwf: 0, label: '10% Off Collector Welcome', status: 'Active', uses: 94 },
+    { code: 'ARCHTRADE15', percent: 15, creditRwf: 0, label: '15% Off Architectural Trade', status: 'Active', uses: 28 },
+    { code: 'STUDIOOPEN', percent: 20, creditRwf: 0, label: '20% Off Launch Edition', status: 'Paused', uses: 112 },
   ]);
 
   const [showNewCodeForm, setShowNewCodeForm] = useState(false);
@@ -447,7 +456,7 @@ export const PromoManagementView: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <span className="font-mono font-bold text-neutral-900">{item.code}</span>
                       <span className="text-[10px] font-mono bg-neutral-100 text-neutral-700 px-1.5 py-0.5 rounded-xs">
-                        {item.percent}% OFF
+                        {item.creditRwf ? `${item.creditRwf.toLocaleString()} RWF CREDIT` : `${item.percent}% OFF`}
                       </span>
                     </div>
                     <div className="text-[10px] text-neutral-400">{item.label}</div>

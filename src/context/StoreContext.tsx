@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   Product,
   CartItem,
@@ -8,6 +8,7 @@ import {
   AuditLog,
   StorefrontFilter,
   PromoPopupConfig,
+  AppliedPromo,
   PolicySection,
   TeamMember,
   TeamPermissions,
@@ -84,7 +85,7 @@ interface StoreContextType {
   submitCheckoutOrder: (details: { customerName: string; customerEmail: string; paymentMethod: string; cardLast4?: string }) => Order;
   cartCount: number;
   cartSubtotalUSD: number;
-  appliedPromo: { code: string; discountPercent: number; description: string } | null;
+  appliedPromo: AppliedPromo | null;
   applyPromoCode: (code: string) => { success: boolean; message: string };
   removePromoCode: () => void;
   cartPromoDiscountUSD: number;
@@ -585,14 +586,16 @@ const INITIAL_PROFILE: UserProfile = {
 const INITIAL_PROMO_CONFIG: PromoPopupConfig = {
   enabled: true,
   delaySeconds: 30,
-  badgeText: 'sample sale',
-  eyebrow: 'ONLINE SAMPLE SALE NOW LIVE!',
-  headline: 'Shop up to 70% off select sample sale items!',
-  subtext: 'Ends September 7th.',
-  buttonText: 'SHOP NOW!',
-  discountCode: 'SAMPLE70',
+  badgeText: 'Welcome Gift',
+  eyebrow: 'EXCLUSIVE FIRST PURCHASE OFFER',
+  headline: 'Enjoy 25,000 Rwf Free Credit on Your First Order',
+  subtext: 'Receive a complimentary 25,000 Rwf studio credit applied directly at checkout on your first bespoke rug or studio piece.',
+  buttonText: 'Claim 25,000 Rwf Credit',
+  discountCode: 'RWF25K',
   imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=85',
-  filterTag: 'on-sale'
+  discountAmountRWF: 25000,
+  creditType: 'fixed_rwf',
+  filterTag: undefined
 };
 
 const INITIAL_ORDERS: Order[] = [
@@ -789,7 +792,7 @@ const sanitizeProduct = (p: any): Product => {
     colours: Array.isArray(p.colours) && p.colours.length > 0
       ? p.colours.map((c: any, idx: number) => {
           return {
-            id: c.id || `c-${idx}-${Date.now()}`,
+            id: c.id || `c-${idx + 1}`,
             name: c.name || `Variant ${idx + 1}`,
             hex: c.hex || '#111111',
             image: c.image !== undefined ? c.image : (idx === 0 ? p.cardImage : undefined),
@@ -829,6 +832,9 @@ const sanitizeProduct = (p: any): Product => {
 };
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Flag to avoid overwriting IndexedDB with fallback/initial state during initial render
+  const isHydratedRef = useRef(false);
+
   // Live products - synchronous init from persistent storage
   const [products, setProducts] = useState<Product[]>(() => {
     try {
@@ -855,7 +861,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   });
 
-  // Hydrate from IndexedDB in case localStorage was full or restricted
+  // Hydrate from IndexedDB in case localStorage was full, purged, or restricted
   useEffect(() => {
     let active = true;
     async function hydrate() {
@@ -873,6 +879,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       } catch (err) {
         console.warn('IndexedDB initial hydration skipped:', err);
+      } finally {
+        if (active) {
+          isHydratedRef.current = true;
+        }
       }
     }
     hydrate();
@@ -1403,22 +1413,43 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Promo Code in Cart Checkout
-  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountPercent: number; description: string } | null>(null);
+  const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null);
 
   const applyPromoCode = (code: string) => {
     const clean = code.trim().toUpperCase();
-    if (clean === 'SAMPLE70' || clean === 'MOSIAC70') {
-      setAppliedPromo({ code: clean, discountPercent: 70, description: 'Sample Sale (70% Off)' });
-      showToast('Promo code applied: 70% Off!');
-      return { success: true, message: '70% discount applied!' };
+
+    // 25,000 Rwf Free Credit on first purchase (RWF25K, FIRST25K, MOSIAC25K, or legacy SAMPLE70)
+    if (clean === 'RWF25K' || clean === 'FIRST25K' || clean === 'MOSIAC25K' || clean === 'RWANDA25K' || clean === 'SAMPLE70') {
+      const fixedRWF = 25000;
+      const fixedUSD = 25000 / 1320.0;
+      setAppliedPromo({
+        code: clean === 'SAMPLE70' ? 'RWF25K' : clean,
+        discountFixedRWF: fixedRWF,
+        discountFixedUSD: fixedUSD,
+        description: '25,000 Rwf First Purchase Credit'
+      });
+      showToast('Promo code applied: 25,000 Rwf credit added!');
+      return { success: true, message: '25,000 Rwf free credit applied to your order!' };
     } else if (clean === 'MOSIAC10' || clean === 'WELCOME10') {
       setAppliedPromo({ code: clean, discountPercent: 10, description: 'Collector Welcome (10% Off)' });
       showToast('Promo code applied: 10% Off!');
       return { success: true, message: '10% discount applied!' };
     } else if (clean === promoPopupConfig.discountCode.toUpperCase()) {
-      setAppliedPromo({ code: clean, discountPercent: 30, description: 'Promotional Offer (30% Off)' });
-      showToast('Promo code applied: 30% Off!');
-      return { success: true, message: 'Promotional discount applied!' };
+      if (promoPopupConfig.creditType === 'fixed_rwf' || promoPopupConfig.discountAmountRWF) {
+        const amount = promoPopupConfig.discountAmountRWF || 25000;
+        setAppliedPromo({
+          code: clean,
+          discountFixedRWF: amount,
+          discountFixedUSD: amount / 1320.0,
+          description: `${amount.toLocaleString()} Rwf Studio Credit`
+        });
+        showToast(`Promo code applied: ${amount.toLocaleString()} Rwf credit added!`);
+        return { success: true, message: `${amount.toLocaleString()} Rwf credit applied!` };
+      } else {
+        setAppliedPromo({ code: clean, discountPercent: 30, description: 'Promotional Offer (30% Off)' });
+        showToast('Promo code applied: 30% Off!');
+        return { success: true, message: 'Promotional discount applied!' };
+      }
     }
     return { success: false, message: 'Invalid or expired promotional code' };
   };
@@ -1542,12 +1573,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Sync to persistent storage
+  // Sync to persistent storage only AFTER initial hydration has completed
   useEffect(() => {
+    if (!isHydratedRef.current) return;
     setPersistentItem(STORAGE_KEYS.LIVE_PRODUCTS, products);
   }, [products]);
 
   useEffect(() => {
+    if (!isHydratedRef.current) return;
     setPersistentItem(STORAGE_KEYS.STAGED_PRODUCTS, stagedProducts);
   }, [stagedProducts]);
 
@@ -1735,7 +1768,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const newOrderId = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
     const receiptSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
     const receiptId = `RCP-${newOrderId}-${receiptSuffix}`;
-    const promoDiscountUSD = appliedPromo ? (cartSubtotalUSD * appliedPromo.discountPercent) / 100 : 0;
+    const promoDiscountUSD = appliedPromo
+      ? (appliedPromo.discountFixedUSD !== undefined
+          ? Math.min(cartSubtotalUSD, appliedPromo.discountFixedUSD)
+          : appliedPromo.discountPercent !== undefined
+            ? (cartSubtotalUSD * appliedPromo.discountPercent) / 100
+            : 0)
+      : 0;
     const finalTotal = Math.max(0, cartSubtotalUSD - promoDiscountUSD);
 
     // Map cart items into full OrderItemSummary with high-res pictures, dimensions, and styling
@@ -1801,7 +1840,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       {
         id: 'log-' + Date.now(),
         action: `Order placed (${newOrderId})`,
-        target: `${details.paymentMethod} · ${currency.symbol}${finalTotal.toLocaleString()}${appliedPromo ? ` (${appliedPromo.code} -${appliedPromo.discountPercent}%)` : ''}`,
+        target: `${details.paymentMethod} · ${currency.symbol}${finalTotal.toLocaleString()}${appliedPromo ? ` (${appliedPromo.code} -${appliedPromo.discountFixedRWF ? '25,000 Rwf credit' : `${appliedPromo.discountPercent}%`})` : ''}`,
         user: details.customerName || 'Customer',
         timestamp: 'Just now'
       },
@@ -1823,7 +1862,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return total + price * item.quantity;
   }, 0);
 
-  const promoDiscountUSD = appliedPromo ? (cartSubtotalUSD * appliedPromo.discountPercent) / 100 : 0;
+  const promoDiscountUSD = appliedPromo
+    ? (appliedPromo.discountFixedUSD !== undefined
+        ? Math.min(cartSubtotalUSD, appliedPromo.discountFixedUSD)
+        : appliedPromo.discountPercent !== undefined
+          ? (cartSubtotalUSD * appliedPromo.discountPercent) / 100
+          : 0)
+    : 0;
   const cartFinalTotalUSD = Math.max(0, cartSubtotalUSD - promoDiscountUSD);
 
   // Admin Actions

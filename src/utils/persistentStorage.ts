@@ -89,6 +89,42 @@ export async function getPersistentItem<T>(key: string, fallback: T): Promise<T>
 }
 
 /**
+ * Helper to produce a lightweight version for localStorage if quota is reached
+ */
+function createStorageSafeCopy(val: any): any {
+  if (!val) return val;
+  try {
+    if (Array.isArray(val)) {
+      return val.map(item => {
+        if (typeof item === 'object' && item !== null) {
+          const clone = { ...item };
+          // If images are giant data URLs (>25KB), use placeholder or truncate for localStorage
+          // Full high-res data URL is preserved in IndexedDB
+          if (typeof clone.cardImage === 'string' && clone.cardImage.startsWith('data:') && clone.cardImage.length > 25000) {
+            clone.cardImage = '/images/uzu-slate-bronze.jpg';
+          }
+          if (typeof clone.hoverImage === 'string' && clone.hoverImage.startsWith('data:') && clone.hoverImage.length > 25000) {
+            clone.hoverImage = '/images/uzu-ivory-bronze.jpg';
+          }
+          if (Array.isArray(clone.galleryImages)) {
+            clone.galleryImages = clone.galleryImages.map((img: any) =>
+              typeof img === 'string' && img.startsWith('data:') && img.length > 25000
+                ? '/images/uzu-slate-bronze.jpg'
+                : img
+            );
+          }
+          return clone;
+        }
+        return item;
+      });
+    }
+    return val;
+  } catch {
+    return val;
+  }
+}
+
+/**
  * Persist to both localStorage and IndexedDB
  */
 export async function setPersistentItem<T>(key: string, value: T): Promise<void> {
@@ -98,9 +134,13 @@ export async function setPersistentItem<T>(key: string, value: T): Promise<void>
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch (err) {
-    // If quota exceeded or disabled, localStorage will throw.
-    // That is okay because IndexedDB handles large payloads!
-    console.warn(`[PersistentStorage] localStorage.setItem failed for ${key} (likely quota limit), proceeding with IndexedDB:`, err);
+    // If quota exceeded, attempt to write safe compact metadata copy
+    try {
+      const safeCopy = createStorageSafeCopy(value);
+      localStorage.setItem(key, JSON.stringify(safeCopy));
+    } catch {
+      console.warn(`[PersistentStorage] localStorage.setItem fully exhausted for ${key}, using IndexedDB.`);
+    }
   }
 
   // 2. Write to IndexedDB for reliable high-capacity durable storage

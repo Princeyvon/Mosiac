@@ -202,7 +202,11 @@ export const CartPage: React.FC = () => {
                     <div className="flex items-center justify-between p-2.5 bg-emerald-50 border border-emerald-200 rounded-sm text-xs">
                       <div>
                         <span className="font-mono font-bold text-emerald-800">{appliedPromo.code}</span>
-                        <span className="text-emerald-700 ml-2">({appliedPromo.discountPercent}% off)</span>
+                        <span className="text-emerald-700 ml-2">
+                          {appliedPromo.discountFixedRWF
+                            ? `(${appliedPromo.discountFixedRWF.toLocaleString()} Rwf Free Credit)`
+                            : `(${appliedPromo.discountPercent}% off)`}
+                        </span>
                       </div>
                       <button
                         type="button"
@@ -218,7 +222,7 @@ export const CartPage: React.FC = () => {
                         type="text"
                         value={promoInput}
                         onChange={(e) => setPromoInput(e.target.value)}
-                        placeholder="e.g. MOSIAC15"
+                        placeholder="e.g. RWF25K or MOSIAC10"
                         className="flex-1 bg-white border border-neutral-300 rounded-sm px-3 py-1.5 text-xs font-mono uppercase focus:outline-none focus:border-black"
                       />
                       <button
@@ -245,7 +249,11 @@ export const CartPage: React.FC = () => {
 
                   {cartPromoDiscountUSD > 0 && (
                     <div className="flex justify-between w-full text-emerald-600">
-                      <span>Promo Discount ({appliedPromo?.discountPercent}%):</span>
+                      <span>
+                        {appliedPromo?.discountFixedRWF
+                          ? `Promo Credit (${appliedPromo.discountFixedRWF.toLocaleString()} Rwf):`
+                          : `Promo Discount (${appliedPromo?.discountPercent}%):`}
+                      </span>
                       <span className="font-mono font-medium">-{formatPrice(cartPromoDiscountUSD)}</span>
                     </div>
                   )}
